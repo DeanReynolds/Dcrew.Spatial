@@ -94,38 +94,24 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
         {
             int x = area.X / Spacing,
                 y = area.Y / Spacing;
-            int lX = area.Width / Spacing - 1 + x,
-                lY = area.Height / Spacing - 1 + y;
-            for (var j = x; j <= lX; j += 3)
-                for (var k = y; k <= lY; k += 3)
-                    foreach (var t in Query(new Point(j, k)))
+            int lX = area.Width / Spacing + x + 1,
+                lY = area.Height / Spacing + y + 1;
+            for (var j = x; j < lX; j += 3)
+                for (var k = y; k < lY; k += 3)
+                    foreach (var t in InQuery(new Point(j, k)))
                         yield return t;
             int e = area.Width / Spacing % 3;
-            if (e == 0)
-                for (var k = y; k <= lY; k += 3)
-                    foreach (var t in Query(new Point(lX + 1, k)))
+            if (e > 0)
+            {
+                for (var k = y; k < lY; k += 3)
+                    foreach (var t in InQuery(new Point(e % 2 + lX, k)))
                         yield return t;
-            else if (e == 1)
-                for (var k = y; k <= lY; k += 3)
-                    foreach (var t in Query(new Point(lX + 3, k)))
-                        yield return t;
-            else if (e == 2)
-                for (var k = y; k <= lY; k += 3)
-                    foreach (var t in Query(new Point(lX + 2, k)))
-                        yield return t;
+                lX += 3;
+            }
             e = area.Height / Spacing % 3;
-            lX += 3;
-            if (e == 0)
-                for (var j = x; j <= lX; j += 3)
-                    foreach (var t in Query(new Point(j, lY + 1)))
-                        yield return t;
-            else if (e == 1)
-                for (var j = x; j <= lX; j += 3)
-                    foreach (var t in Query(new Point(j, lY + 3)))
-                        yield return t;
-            else if (e == 2)
-                for (var j = x; j <= lX; j += 3)
-                    foreach (var t in Query(new Point(j, lY + 2)))
+            if (e > 0)
+                for (var j = x; j < lX; j += 3)
+                    foreach (var t in InQuery(new Point(j, e % 2 + lY)))
                         yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
