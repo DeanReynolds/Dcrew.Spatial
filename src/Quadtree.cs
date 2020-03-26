@@ -1,8 +1,6 @@
 ﻿using Dcrew.ObjectPool;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -10,7 +8,7 @@ using System.Reflection;
 namespace Dcrew.MonoGame._2D_Spatial_Partition
 {
     /// <summary>For fast and accurate spatial partitioning. Set <see cref="Bounds"/> before use</summary>
-    public static class Quadtree<T> where T : IAABB
+    public static class Quadtree<T> where T : class, IAABB
     {
         class Node : IPoolable
         {
@@ -455,17 +453,17 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             }
             _stored[item] = (GetNewNode(c.Node).Add(item, newPos), newPos);
         }
-        /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
-        public static IEnumerable<T> Query(Rectangle area)
-        {
-            foreach (var t in _mainNode.Query(new Rectangle(area.X - _maxSizeAABB.HalfSize.X, area.Y - _maxSizeAABB.HalfSize.Y, _maxSizeAABB.Size.X + area.Width, _maxSizeAABB.Size.Y + area.Height), area))
-                yield return t;
-        }
         /// <summary>Query and return the items intersecting <paramref name="pos"/></summary>
         public static IEnumerable<T> Query(Vector2 pos)
         {
             foreach (var t in _mainNode.Query(new Rectangle((int)MathF.Round(pos.X - _maxSizeAABB.HalfSize.X), (int)MathF.Round(pos.Y - _maxSizeAABB.HalfSize.Y), _maxSizeAABB.Size.X + 1, _maxSizeAABB.Size
                 .Y + 1), new Rectangle((int)MathF.Round(pos.X), (int)MathF.Round(pos.Y), 1, 1)))
+                yield return t;
+        }
+        /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
+        public static IEnumerable<T> Query(Rectangle area)
+        {
+            foreach (var t in _mainNode.Query(new Rectangle(area.X - _maxSizeAABB.HalfSize.X, area.Y - _maxSizeAABB.HalfSize.Y, _maxSizeAABB.Size.X + area.Width, _maxSizeAABB.Size.Y + area.Height), area))
                 yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>

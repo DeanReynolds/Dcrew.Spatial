@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace Dcrew.MonoGame._2D_Spatial_Partition
 {
     /// <summary>For very fast but approximate spatial partitioning. See <see cref="Spacing"/> before use</summary>
-    public static class SpatialHash<T> where T : IAABB
+    public static class SpatialHash<T> where T : class, IAABB
     {
         const int DEFAULT_SPACING = 50;
 
