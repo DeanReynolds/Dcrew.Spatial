@@ -9,6 +9,7 @@
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <RepositoryUrl>https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition</RepositoryUrl>
     <PackageTags>MonoGame</PackageTags>
+    <PackageId>Dcrew.MonoGame.2D_Spatial_Partition</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
