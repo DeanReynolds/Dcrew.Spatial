@@ -85,8 +85,6 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
                         return n._nw.Add(i, p);
                     return n;
                 }
-                if (!Bounds.Contains(pos))
-                    ;
                 if (_nw == null)
                     if (_items.Count >= CAPACITY && Bounds.Width * Bounds.Height > 1024)
                     {
@@ -199,8 +197,6 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
                     return;
                 foreach (var i in AllSubItems)
                 {
-                    if (!Bounds.Contains(_stored[i].Pos))
-                        ;
                     _items.Add(i);
                     _stored[i] = (this, _stored[i].Pos);
                 }
