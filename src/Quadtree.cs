@@ -454,10 +454,15 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             _stored[item] = (GetNewNode(c.Node).Add(item, newPos), newPos);
         }
         /// <summary>Query and return the items intersecting <paramref name="pos"/></summary>
+        public static IEnumerable<T> Query(Point pos)
+        {
+            foreach (var t in _mainNode.Query(new Rectangle(pos.X - _maxSizeAABB.HalfSize.X, pos.Y - _maxSizeAABB.HalfSize.Y, _maxSizeAABB.Size.X + 1, _maxSizeAABB.Size.Y + 1), new Rectangle(pos, new Point(1))))
+                yield return t;
+        }
+        /// <summary>Query and return the items intersecting <paramref name="pos"/></summary>
         public static IEnumerable<T> Query(Vector2 pos)
         {
-            foreach (var t in _mainNode.Query(new Rectangle((int)MathF.Round(pos.X - _maxSizeAABB.HalfSize.X), (int)MathF.Round(pos.Y - _maxSizeAABB.HalfSize.Y), _maxSizeAABB.Size.X + 1, _maxSizeAABB.Size
-                .Y + 1), new Rectangle((int)MathF.Round(pos.X), (int)MathF.Round(pos.Y), 1, 1)))
+            foreach (var t in _mainNode.Query(new Rectangle((int)MathF.Round(pos.X - _maxSizeAABB.HalfSize.X), (int)MathF.Round(pos.Y - _maxSizeAABB.HalfSize.Y), _maxSizeAABB.Size.X + 1, _maxSizeAABB.Size.Y + 1), new Rectangle((int)MathF.Round(pos.X), (int)MathF.Round(pos.Y), 1, 1)))
                 yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>

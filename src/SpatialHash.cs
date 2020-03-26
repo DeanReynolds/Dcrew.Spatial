@@ -88,7 +88,9 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             _stored.Clear();
         }
         /// <summary>Query and return the items intersecting <paramref name="pos"/></summary>
-        public static IEnumerable<T> Query(Vector2 pos) => Query(new Point((int)(pos.X / Spacing), (int)(pos.Y / Spacing)));
+        public static IEnumerable<T> Query(Point pos) => InQuery(new Point(pos.X / Spacing, pos.Y / Spacing));
+        /// <summary>Query and return the items intersecting <paramref name="pos"/></summary>
+        public static IEnumerable<T> Query(Vector2 pos) => InQuery(new Point((int)(pos.X / Spacing), (int)(pos.Y / Spacing)));
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
         public static IEnumerable<T> Query(Rectangle area)
         {
@@ -157,7 +159,7 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             _hash[bucket].Add(obj);
         }
 
-        static IEnumerable<T> Query(Point p)
+        static IEnumerable<T> InQuery(Point p)
         {
             var bucket = p;
             if (_hash.ContainsKey(bucket))
