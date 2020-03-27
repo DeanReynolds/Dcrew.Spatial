@@ -296,7 +296,7 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             foreach (var p in typeof(Game).GetProperties(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Static))
                 if (p.GetValue(_game) is Game g)
                     _game = g;
-            _components = (GameComponentCollection)typeof(Game).GetField("_components", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(_game);
+            _components = _game.Components;
         }
 
         /// <summary>Returns true if <paramref name="item"/> is in the tree</summary>
