@@ -266,6 +266,7 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
                 }
             }
         }
+
         public static Rectangle Bounds
         {
             get => _mainNode.Bounds;
@@ -275,7 +276,7 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
                 _mainNode.FreeSubNodes();
                 _mainNode.OnFree();
                 _mainNode.Bounds = value;
-                int NodeCount(Point b)
+                static int NodeCount(Point b)
                 {
                     var r = 1;
                     if (b.X * b.Y > 1024)
@@ -344,12 +345,16 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
         static int _extendToN = int.MaxValue, _extendToE, _extendToS, _extendToW = int.MaxValue;
         static HashSet<Node> _nodesToClean = new HashSet<Node>();
         static Updates _updates;
+        static event AddItem _addItem = InitAdd;
+
+        delegate void AddItem(T item);
 
         [Flags] enum Updates : byte { ManualMode = 1, AutoCleanNodes = 2, AutoExpandTree = 4, ManualCleanNodes = 8, ManualExpandTree = 16 }
 
         /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE</summary>
         public static void Add(T item)
         {
+            _addItem?.Invoke(item);
             var aabb = item.AABB;
             var pos = aabb.Center;
             _stored.Add(item, (_mainNode.Add(item, pos), pos));
@@ -505,6 +510,12 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
                 return true;
             }
             return false;
+        }
+
+        static void InitAdd(T item)
+        {
+            Bounds = new Rectangle(item.AABB.Center, new Point(1));
+            _addItem -= InitAdd;
         }
     }
 }
