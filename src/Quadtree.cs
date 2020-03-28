@@ -355,25 +355,9 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             _stored.Add(item, (_mainNode.Add(item, pos), pos));
             if (aabb.Width > _maxSizeAABB.Size.X || aabb.Height > _maxSizeAABB.Size.Y)
                 _maxSizeAABB = (item, new Point((int)MathF.Ceiling(aabb.Width / 2f), (int)MathF.Ceiling(aabb.Height / 2f)), new Point(aabb.Width, aabb.Height));
-            if (Bounds.Left > pos.X || Bounds.Top > pos.Y || Bounds.Right < pos.X + 1 || Bounds.Bottom < pos.Y + 1)
-            {
-                if (pos.Y < _extendToN)
-                    _extendToN = pos.Y;
-                if (pos.X > _extendToE)
-                    _extendToE = pos.X;
-                if (pos.Y > _extendToS)
-                    _extendToS = pos.Y;
-                if (pos.X < _extendToW)
-                    _extendToW = pos.X;
-                if (_updates.HasFlag(Updates.ManualMode))
-                    _updates |= Updates.ManualExpandTree;
-                else if (!_updates.HasFlag(Updates.AutoExpandTree))
-                {
-                    _components.Add(_expandTree);
-                    _updates |= Updates.AutoExpandTree;
-                }
-            }
+            TryExpandTree(pos);
         }
+
         /// <summary>Removes <paramref name="item"/> from the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public static void Remove(T item)
         {
@@ -409,25 +393,8 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             var newPos = aabb.Center;
             if (aabb.Width > _maxSizeAABB.Size.X || aabb.Height > _maxSizeAABB.Size.Y)
                 _maxSizeAABB = (item, new Point((int)MathF.Ceiling(aabb.Width / 2f), (int)MathF.Ceiling(aabb.Height / 2f)), new Point(aabb.Width, aabb.Height));
-            if (Bounds.Left > newPos.X || Bounds.Top > newPos.Y || Bounds.Right < newPos.X + 1 || Bounds.Bottom < newPos.Y + 1)
-            {
-                if (newPos.Y < _extendToN)
-                    _extendToN = newPos.Y;
-                if (newPos.X > _extendToE)
-                    _extendToE = newPos.X;
-                if (newPos.Y > _extendToS)
-                    _extendToS = newPos.Y;
-                if (newPos.X < _extendToW)
-                    _extendToW = newPos.X;
-                if (_updates.HasFlag(Updates.ManualMode))
-                    _updates |= Updates.ManualExpandTree;
-                else if (!_updates.HasFlag(Updates.AutoExpandTree))
-                {
-                    _components.Add(_expandTree);
-                    _updates |= Updates.AutoExpandTree;
-                }
+            if (TryExpandTree(newPos))
                 return;
-            }
             var c = _stored[item];
             if (c.Node.Bounds.Contains(newPos) || c.Node._parent == null)
             {
@@ -514,6 +481,30 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             else if (_updates.HasFlag(Updates.ManualExpandTree))
                 _expandTree.Update(null);
             _updates = Updates.ManualMode;
+        }
+
+        static bool TryExpandTree(Point pos)
+        {
+            if (Bounds.Left > pos.X || Bounds.Top > pos.Y || Bounds.Right < pos.X + 1 || Bounds.Bottom < pos.Y + 1)
+            {
+                if (pos.Y < _extendToN)
+                    _extendToN = pos.Y;
+                if (pos.X > _extendToE)
+                    _extendToE = pos.X;
+                if (pos.Y > _extendToS)
+                    _extendToS = pos.Y;
+                if (pos.X < _extendToW)
+                    _extendToW = pos.X;
+                if (_updates.HasFlag(Updates.ManualMode))
+                    _updates |= Updates.ManualExpandTree;
+                else if (!_updates.HasFlag(Updates.AutoExpandTree))
+                {
+                    _components.Add(_expandTree);
+                    _updates |= Updates.AutoExpandTree;
+                }
+                return true;
+            }
+            return false;
         }
     }
 }
