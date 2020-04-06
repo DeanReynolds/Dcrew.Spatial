@@ -132,20 +132,23 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             for (var j = x; j < lX; j += 3)
                 for (var k = y; k < lY; k += 3)
                     foreach (var t in InQuery(new Point(j, k)))
-                        yield return t;
+                        if (t.AABB.Intersects(area))
+                            yield return t;
             int e = area.Width / Spacing % 3;
             if (e > 0)
             {
                 for (var k = y; k < lY; k += 3)
                     foreach (var t in InQuery(new Point(e % 2 + lX, k)))
-                        yield return t;
+                        if (t.AABB.Intersects(area))
+                            yield return t;
                 lX += 3;
             }
             e = area.Height / Spacing % 3;
             if (e > 0)
                 for (var j = x; j < lX; j += 3)
                     foreach (var t in InQuery(new Point(j, e % 2 + lY)))
-                        yield return t;
+                        if (t.AABB.Intersects(area))
+                            yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
         /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
