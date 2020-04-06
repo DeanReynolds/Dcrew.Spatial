@@ -502,6 +502,26 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             _updates = Updates.ManualMode;
         }
 
+        /// <summary>Shrinks the tree to the smallest possible size</summary>
+        public static void Shrink()
+        {
+            Point min = new Point(int.MaxValue),
+                max = new Point(int.MinValue);
+            foreach (var i in Items)
+            {
+                var pos = i.AABB.Center;
+                if (pos.X < min.X)
+                    min.X = pos.X;
+                if (pos.X > max.X)
+                    max.X = pos.X;
+                if (pos.Y < min.Y)
+                    min.Y = pos.Y;
+                if (pos.Y > max.Y)
+                    max.Y = pos.Y;
+            }
+            Bounds = new Rectangle(min.X, min.Y, max.X - min.X + 1, max.Y - min.Y + 1);
+        }
+
         static bool TryExpandTree(Point pos)
         {
             if (Bounds.Left > pos.X || Bounds.Top > pos.Y || Bounds.Right < pos.X + 1 || Bounds.Bottom < pos.Y + 1)
