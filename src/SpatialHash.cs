@@ -54,18 +54,15 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
                 i = _stored[item];
             if (bucket == i)
                 return false;
-
-            //var t = _hash[i];
-            //if (t.Count <= 1)
-            //{
-            //    t.Clear();
-            //    Pool<HashSet<T>>.Free(t);
-            //    _hash.Remove(i);
-            //}
-            //else
-            //    t.Remove(item);
-            _hash[i].Remove(item);
-
+            var t = _hash[i];
+            if (t.Count <= 1)
+            {
+                t.Clear();
+                Pool<HashSet<T>>.Free(t);
+                _hash.Remove(i);
+            }
+            else
+                t.Remove(item);
             Add(item, bucket);
             _stored[item] = bucket;
             return true;
