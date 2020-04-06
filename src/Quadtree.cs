@@ -353,7 +353,10 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
         static readonly ExpandTree _expandTree = new ExpandTree();
 
         static (T Item, Point HalfSize, Point Size) _maxSizeAABB;
-        static int _extendToN = int.MaxValue, _extendToE, _extendToS, _extendToW = int.MaxValue;
+        static int _extendToN = int.MaxValue,
+            _extendToE = int.MinValue,
+            _extendToS = int.MinValue,
+            _extendToW = int.MaxValue;
         static HashSet<Node> _nodesToClean = new HashSet<Node>();
         static Updates _updates;
         static event AddItem _addItem = InitAdd;
