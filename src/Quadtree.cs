@@ -304,7 +304,7 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
         /// <summary>Returns true if <paramref name="item"/> is in the tree</summary>
         public static bool Contains(T item) => _stored.ContainsKey(item);
         /// <summary>Return all items and their container rects</summary>
-        public static IEnumerable<(T Item, Rectangle Node)> Items
+        public static IEnumerable<(T Item, Rectangle Node)> Bundles
         {
             get
             {
