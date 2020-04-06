@@ -19,25 +19,27 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
                 _spacing = value;
                 //foreach (var obj in _stored.Keys)
                 //    Update(obj);
+                _halfSpacing = _spacing / 2;
             }
         }
 
         /// <summary>Returns true if <paramref name="item"/> is in the tree</summary>
         public static bool Contains(T item) => _stored.ContainsKey(item);
         /// <summary>Return all items and their container points</summary>
-        public static IEnumerable<(T Item, Point Node)> Items
+        public static IEnumerable<(T Item, Vector2 Node)> Bundles
         {
             get
             {
                 foreach (var i in _stored)
-                    yield return (i.Key, i.Value);
+                    yield return (i.Key, new Vector2(i.Value.X * _spacing + _halfSpacing, i.Value.Y * _spacing + _halfSpacing));
             }
         }
 
         static readonly Dictionary<Point, HashSet<T>> _hash = new Dictionary<Point, HashSet<T>>();
         static readonly Dictionary<T, Point> _stored = new Dictionary<T, Point>();
 
-        static int _spacing = DEFAULT_SPACING;
+        static int _spacing = DEFAULT_SPACING,
+            _halfSpacing = _spacing / 2;
 
         /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE</summary>
         public static void Add(T item)
