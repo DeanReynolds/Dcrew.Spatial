@@ -505,6 +505,8 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
         /// <summary>Shrinks the tree to the smallest possible size</summary>
         public static void Shrink()
         {
+            if (_stored.Count == 0)
+                return;
             Point min = new Point(int.MaxValue),
                 max = new Point(int.MinValue);
             foreach (var i in Items)
