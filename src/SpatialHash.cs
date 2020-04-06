@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Dcrew.MonoGame._2D_Spatial_Partition
 {
@@ -17,9 +18,22 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             set
             {
                 _spacing = value;
-                //foreach (var obj in _stored.Keys)
-                //    Update(obj);
                 _halfSpacing = _spacing / 2;
+                var bundles = _stored.ToArray();
+                foreach (var (_, n) in bundles)
+                    if (_hash.ContainsKey(n))
+                    {
+                        var t = _hash[n];
+                        t.Clear();
+                        Pool<HashSet<T>>.Free(t);
+                        _hash.Remove(n);
+                    }
+                foreach (var (i, _) in bundles)
+                {
+                    var b = Bucket(i);
+                    Add(i, b);
+                    _stored[i] = b;
+                }
             }
         }
 
