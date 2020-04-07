@@ -151,6 +151,7 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
                             yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
+        /// <param name="area">Area (rectangle)</param>
         /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
         /// <param name="origin">Origin of <paramref name="area"/></param>
         public static IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin)
