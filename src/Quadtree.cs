@@ -71,7 +71,7 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
 
             public Node Add(T item, Point pos)
             {
-                Node Bury(T i, Node n, Point p)
+                static Node Bury(T i, Node n, Point p)
                 {
                     if (n._ne.Bounds.Contains(p))
                         return n._ne.Add(i, p);
@@ -326,7 +326,7 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
         {
             get
             {
-                IEnumerable<Node> Nodes(Node n)
+                static IEnumerable<Node> Nodes(Node n)
                 {
                     yield return n;
                     if (n._nw == null)
@@ -345,21 +345,21 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             }
         }
 
+        static (T Item, Point HalfSize, Point Size) _maxSizeAABB;
+        static int _extendToN = int.MaxValue,
+            _extendToE = int.MinValue,
+            _extendToS = int.MinValue,
+            _extendToW = int.MaxValue;
+        static Updates _updates;
+        static event AddItem _addItem = InitAdd;
+
         static readonly Game _game;
         static readonly GameComponentCollection _components;
         static readonly Node _mainNode = new Node();
         static readonly IDictionary<T, (Node Node, Point Pos)> _stored = new Dictionary<T, (Node, Point)>();
         static readonly CleanNodes _cleanNodes = new CleanNodes();
         static readonly ExpandTree _expandTree = new ExpandTree();
-
-        static (T Item, Point HalfSize, Point Size) _maxSizeAABB;
-        static int _extendToN = int.MaxValue,
-            _extendToE = int.MinValue,
-            _extendToS = int.MinValue,
-            _extendToW = int.MaxValue;
-        static HashSet<Node> _nodesToClean = new HashSet<Node>();
-        static Updates _updates;
-        static event AddItem _addItem = InitAdd;
+        static readonly HashSet<Node> _nodesToClean = new HashSet<Node>();
 
         delegate void AddItem(T item);
 
