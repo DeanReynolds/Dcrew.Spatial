@@ -10,7 +10,7 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
         /// <summary>Returns an axis-aligned rectangle covering <paramref name="area"/> rotated by <paramref name="angle"/> using the given offset <paramref name="origin"/></summary>
         /// <param name="area">Area (rectangle)</param>
         /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
-        /// <param name="origin">Origin of <paramref name="area"/></param>
+        /// <param name="origin">Origin (in pixels) of <paramref name="area"/></param>
         public static Rectangle Rotate(Rectangle area, float angle, Vector2 origin)
         {
             float cos = MathF.Cos(angle),

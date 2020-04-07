@@ -2,8 +2,10 @@
 
 namespace Dcrew.MonoGame._2D_Spatial_Partition
 {
+    /// <summary>Axis-aligned 2D bounding-box/rectangle</summary>
     public interface IAABB
     {
+        /// <summary>2D bounding box</summary>
         Rectangle AABB { get; }
     }
 }
