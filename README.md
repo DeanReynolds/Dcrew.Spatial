@@ -24,11 +24,12 @@
   - [Add](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/SpatialHash.cs#L68)(T item) - Adds **item** to the tree
   - [Update](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/SpatialHash.cs#L76)(T item) - Updates **item** in the tree to its latest [IAABB](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/IAABB.cs) info
   - [Remove](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/SpatialHash.cs#L96)(T item) - Removes **item** from the tree
-  - [Clear](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/SpatialHash.cs#L111)(T item) - Clears all items from the tree
+  - [Clear](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/SpatialHash.cs#L111)() - Clears all items from the tree
   - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/SpatialHash.cs#L122)(Point pos) - Returns all items intersecting or near pos
   - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/SpatialHash.cs#L124)(Vector2 pos) - Returns all items intersecting or near pos
   - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/SpatialHash.cs#L126)(Rectangle rect) - Returns all items intersecting or near rect
   - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/SpatialHash.cs#L156)(Rectangle rect, float angle, Vector2 origin) - Returns all items intersecting or near rect rotated by angle (in radians) given origin of rect (in pixels)
 
-### What is [IAABB](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/IAABB.cs)?
-#### An interface contract required on classes that use the [Quadtree](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs) or [Spatial Hash](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/SpatialHash.cs), consists of an AABB (rectangle) or axis-aligned bounding box, an Angle (float, in radians) and an Origin (in pixels) of the AABB
+
+#### What is [IAABB](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/IAABB.cs)?
+##### An interface contract required on classes that use the [Quadtree](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs) or [Spatial Hash](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/SpatialHash.cs), consists of an AABB (rectangle) or axis-aligned bounding box, an Angle (float, in radians) and an Origin (in pixels) of the AABB
