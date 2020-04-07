@@ -13,7 +13,6 @@
   - [Remove](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L382)(T item) - Removes **item** from the tree
   - [Clear](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L402)() - Clears all items from the tree
   - [Shrink](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L496)() - Shrinks the tree down to its smallest possible size given the items in the tree
-  - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L445)(Point p) - Returns all items intersecting p
   - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L445)(Point pos) - Returns all items intersecting pos
   - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L451)(Vector2 pos) - Returns all items intersecting pos
   - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L457)(Rectangle rect) - Returns all items intersecting rect
