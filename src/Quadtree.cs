@@ -369,7 +369,8 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
         public static void Add(T item)
         {
             _addItem?.Invoke(item);
-            var aabb = item.AABB;
+            var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
+            aabb.Offset(item.AABB.Location);
             var pos = aabb.Center;
             _stored.Add(item, (_mainNode.Add(item, pos), pos));
             if (aabb.Width > _maxSizeAABB.Size.X || aabb.Height > _maxSizeAABB.Size.Y)
@@ -408,16 +409,17 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public static void Update(T item)
         {
-            var aabb = item.AABB;
-            var newPos = aabb.Center;
+            var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
+            aabb.Offset(item.AABB.Location);
+            var pos = aabb.Center;
             if (aabb.Width > _maxSizeAABB.Size.X || aabb.Height > _maxSizeAABB.Size.Y)
                 _maxSizeAABB = (item, new Point((int)MathF.Ceiling(aabb.Width / 2f), (int)MathF.Ceiling(aabb.Height / 2f)), new Point(aabb.Width, aabb.Height));
-            if (TryExpandTree(newPos))
+            if (TryExpandTree(pos))
                 return;
             var c = _stored[item];
-            if (c.Node.Bounds.Contains(newPos) || c.Node._parent == null)
+            if (c.Node.Bounds.Contains(pos) || c.Node._parent == null)
             {
-                _stored[item] = (c.Node, newPos);
+                _stored[item] = (c.Node, pos);
                 return;
             }
             c.Node.Remove(item);
@@ -432,12 +434,12 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             {
                 if (n._parent == null)
                     return n;
-                if (n._parent.Bounds.Contains(newPos))
+                if (n._parent.Bounds.Contains(pos))
                     return n._parent;
                 else
                     return GetNewNode(n._parent);
             }
-            _stored[item] = (GetNewNode(c.Node).Add(item, newPos), newPos);
+            _stored[item] = (GetNewNode(c.Node).Add(item, pos), pos);
         }
         /// <summary>Query and return the items intersecting <paramref name="pos"/></summary>
         public static IEnumerable<T> Query(Point pos)
