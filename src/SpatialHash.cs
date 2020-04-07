@@ -176,10 +176,12 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
                 yield return t;
         }
 
-        static Point Bucket(T obj)
+        static Point Bucket(T item)
         {
-            var p = obj.AABB.Center;
-            return new Point(p.X / Spacing, p.Y / Spacing);
+            var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
+            aabb.Offset(item.AABB.Location);
+            var pos = aabb.Center;
+            return new Point(pos.X / Spacing, pos.Y / Spacing);
         }
 
         static void Add(T obj, Point bucket)
