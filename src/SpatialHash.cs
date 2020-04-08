@@ -156,22 +156,7 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
         /// <param name="origin">Origin of <paramref name="area"/></param>
         public static IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin)
         {
-            float cos = MathF.Cos(angle),
-                sin = MathF.Sin(angle);
-            Vector2 RotatePoint(Vector2 p, Vector2 o)
-            {
-                float x = p.X - o.X,
-                    y = p.Y - o.Y;
-                return new Vector2(x * cos - y * sin, x * sin + y * cos);
-            }
-            origin = new Vector2(area.X + origin.X, area.Y + origin.Y);
-            Point tL = RotatePoint(new Vector2(area.X, area.Y), origin).ToPoint(),
-                tR = RotatePoint(new Vector2(area.Right, area.Y), origin).ToPoint(),
-                bR = RotatePoint(new Vector2(area.Right, area.Bottom), origin).ToPoint(),
-                bL = RotatePoint(new Vector2(area.X, area.Bottom), origin).ToPoint(),
-                min = new Point(Math.Min(Math.Min(tL.X, tR.X), Math.Min(bR.X, bL.X)), Math.Min(Math.Min(tL.Y, tR.Y), Math.Min(bR.Y, bL.Y))),
-                max = new Point(Math.Max(Math.Max(tL.X, tR.X), Math.Max(bR.X, bL.X)), Math.Max(Math.Max(tL.Y, tR.Y), Math.Max(bR.Y, bL.Y)));
-            area = new Rectangle(min + area.Location, max - min);
+            area = Util.Rotate(area, angle, origin);
             foreach (var t in Query(area))
                 yield return t;
         }
