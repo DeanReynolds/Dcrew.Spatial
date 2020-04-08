@@ -9,14 +9,14 @@
   - static, using generics where T : class, [IAABB](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/IAABB.cs)
   - Auto expands if items are added/updated outside of its current bounds
   - [Add](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L369)(T item) - Adds **item** to the tree
-  - [Update](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L410)(T item) - Updates **item** in the tree to its latest [IAABB](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/IAABB.cs) info
-  - [Remove](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L382)(T item) - Removes **item** from the tree
-  - [Clear](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L402)() - Clears all items from the tree
-  - [Shrink](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L496)() - Shrinks the tree down to its smallest possible size given the items in the tree
-  - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L445)(Point pos) - Returns all items intersecting pos
-  - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L451)(Vector2 pos) - Returns all items intersecting pos
-  - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L457)(Rectangle rect) - Returns all items intersecting rect
-  - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L466)(Rectangle rect, float angle, Vector2 origin) - Returns all items intersecting rect rotated by angle (in radians) given origin of rect (in pixels)
+  - [Update](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L380)(T item) - Updates **item** in the tree to its latest [IAABB](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/IAABB.cs) info
+  - [Remove](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L414)(T item) - Removes **item** from the tree
+  - [Clear](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L434)() - Clears all items from the tree
+  - [Shrink](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L491)() - Shrinks the tree down to its smallest possible size given the items in the tree
+  - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L442)(Point pos) - Returns all items intersecting pos
+  - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L448)(Vector2 pos) - Returns all items intersecting pos
+  - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L454)(Rectangle rect) - Returns all items intersecting rect
+  - [Query](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/Quadtree.cs#L463)(Rectangle rect, float angle, Vector2 origin) - Returns all items intersecting rect rotated by angle (in radians) given origin of rect (in pixels)
 - #### [Spatial Hash](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/SpatialHash.cs)
   - static, using generics where T : class, [IAABB](https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition/blob/master/src/IAABB.cs)
   - Infinite
