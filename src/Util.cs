@@ -63,7 +63,9 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
                 maxy = bry;
             if (bly > maxy)
                 maxy = bly;
-            return new Rectangle((int)minx, (int)miny, (int)MathF.Ceiling(maxx - minx), (int)MathF.Ceiling(maxy - miny));
+            var r = new Rectangle((int)minx, (int)miny, (int)MathF.Ceiling(maxx - minx), (int)MathF.Ceiling(maxy - miny));
+            r.Offset(area.X + origin.X, area.Y + origin.Y);
+            return r;
         }
     }
 }

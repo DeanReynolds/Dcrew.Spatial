@@ -179,7 +179,6 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
         static Point Bucket(T item)
         {
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
-            aabb.Offset(item.AABB.Location);
             var pos = aabb.Center;
             return new Point(pos.X / Spacing, pos.Y / Spacing);
         }

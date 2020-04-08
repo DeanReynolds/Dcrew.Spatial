@@ -370,47 +370,16 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
         {
             _addItem?.Invoke(item);
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
-            aabb.Offset(item.AABB.Location);
             var pos = aabb.Center;
             _stored.Add(item, (_mainNode.Add(item, pos), pos));
             if (aabb.Width > _maxSizeAABB.Size.X || aabb.Height > _maxSizeAABB.Size.Y)
                 _maxSizeAABB = (item, new Point((int)MathF.Ceiling(aabb.Width / 2f), (int)MathF.Ceiling(aabb.Height / 2f)), new Point(aabb.Width, aabb.Height));
             TryExpandTree(pos);
         }
-
-        /// <summary>Removes <paramref name="item"/> from the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
-        public static void Remove(T item)
-        {
-            _stored[item].Node.Remove(item);
-            if (_updates.HasFlag(Updates.ManualMode))
-                _updates |= Updates.ManualCleanNodes;
-            else if (!_updates.HasFlag(Updates.AutoCleanNodes))
-            {
-                _components.Add(_cleanNodes);
-                _updates |= Updates.AutoCleanNodes;
-            }
-            _stored.Remove(item);
-            if (ReferenceEquals(item, _maxSizeAABB.Item))
-            {
-                _maxSizeAABB = (default, Point.Zero, Point.Zero);
-                foreach (T i in _stored.Keys)
-                    if (i.AABB.Width > _maxSizeAABB.Size.X || i.AABB.Height > _maxSizeAABB.Size.Y)
-                        _maxSizeAABB = (i, new Point((int)MathF.Ceiling(i.AABB.Width / 2f), (int)MathF.Ceiling(i.AABB.Height / 2f)), new Point(i.AABB.Width, i.AABB.Height));
-            }
-        }
-        /// <summary>Removes all items and nodes from the tree</summary>
-        public static void Clear()
-        {
-            _mainNode.FreeSubNodes();
-            _mainNode.OnFree();
-            _stored.Clear();
-            _maxSizeAABB = (default, Point.Zero, Point.Zero);
-        }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public static void Update(T item)
         {
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
-            aabb.Offset(item.AABB.Location);
             var pos = aabb.Center;
             if (aabb.Width > _maxSizeAABB.Size.X || aabb.Height > _maxSizeAABB.Size.Y)
                 _maxSizeAABB = (item, new Point((int)MathF.Ceiling(aabb.Width / 2f), (int)MathF.Ceiling(aabb.Height / 2f)), new Point(aabb.Width, aabb.Height));
@@ -441,6 +410,34 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
             }
             _stored[item] = (GetNewNode(c.Node).Add(item, pos), pos);
         }
+        /// <summary>Removes <paramref name="item"/> from the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
+        public static void Remove(T item)
+        {
+            _stored[item].Node.Remove(item);
+            if (_updates.HasFlag(Updates.ManualMode))
+                _updates |= Updates.ManualCleanNodes;
+            else if (!_updates.HasFlag(Updates.AutoCleanNodes))
+            {
+                _components.Add(_cleanNodes);
+                _updates |= Updates.AutoCleanNodes;
+            }
+            _stored.Remove(item);
+            if (ReferenceEquals(item, _maxSizeAABB.Item))
+            {
+                _maxSizeAABB = (default, Point.Zero, Point.Zero);
+                foreach (T i in _stored.Keys)
+                    if (i.AABB.Width > _maxSizeAABB.Size.X || i.AABB.Height > _maxSizeAABB.Size.Y)
+                        _maxSizeAABB = (i, new Point((int)MathF.Ceiling(i.AABB.Width / 2f), (int)MathF.Ceiling(i.AABB.Height / 2f)), new Point(i.AABB.Width, i.AABB.Height));
+            }
+        }
+        /// <summary>Removes all items and nodes from the tree</summary>
+        public static void Clear()
+        {
+            _mainNode.FreeSubNodes();
+            _mainNode.OnFree();
+            _stored.Clear();
+            _maxSizeAABB = (default, Point.Zero, Point.Zero);
+        }
         /// <summary>Query and return the items intersecting <paramref name="pos"/></summary>
         public static IEnumerable<T> Query(Point pos)
         {
@@ -465,9 +462,7 @@ namespace Dcrew.MonoGame._2D_Spatial_Partition
         /// <param name="origin">Origin (in pixels) of <paramref name="area"/></param>
         public static IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin)
         {
-            var pos = area.Location;
             area = Util.Rotate(area, angle, origin);
-            area.Offset(pos);
             foreach (var t in _mainNode.Query(new Rectangle(area.X - _maxSizeAABB.HalfSize.X, area.Y - _maxSizeAABB.HalfSize.Y, _maxSizeAABB.Size.X + area.Width, _maxSizeAABB.Size.Y + area.Height), area))
                 yield return t;
         }
