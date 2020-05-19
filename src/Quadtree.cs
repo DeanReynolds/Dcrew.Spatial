@@ -300,19 +300,19 @@ namespace Dcrew.Spatial
         {
             get
             {
-                static IEnumerable<Node> Nodes(Node n)
+                _nodesToLoop.Clear();
+                _nodesToLoop.Push(_node);
+                Node node;
+                do
                 {
-                    yield return n;
-                    if (n._nw == null)
-                        yield break;
-                    foreach (var n2 in Nodes(n._ne))
-                        yield return n2;
-                    foreach (var n2 in Nodes(n._se))
-                        yield return n2;
-                    foreach (var n2 in Nodes(n._sw))
-                        yield return n2;
-                    foreach (var n2 in Nodes(n._nw))
-                        yield return n2;
+                    node = _nodesToLoop.Pop();
+                    yield return node.Bounds;
+                    if (node._nw == null)
+                        continue;
+                    _nodesToLoop.Push(node._ne);
+                    _nodesToLoop.Push(node._se);
+                    _nodesToLoop.Push(node._sw);
+                    _nodesToLoop.Push(node._nw);
                 }
                 while (_nodesToLoop.Count > 0);
             }
