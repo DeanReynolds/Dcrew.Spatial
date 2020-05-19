@@ -8,9 +8,9 @@ using System.Reflection;
 namespace Dcrew.Spatial
 {
     /// <summary>For fast and accurate spatial partitioning. Set <see cref="Bounds"/> before use</summary>
-    public static class Quadtree<T> where T : class, IAABB
+    public sealed class Quadtree<T> where T : class, IAABB
     {
-        class Node : IPoolable
+        internal sealed class Node : IPoolable
         {
             const int CAPACITY = 8;
 
@@ -65,6 +65,7 @@ namespace Dcrew.Spatial
                 }
             }
 
+            internal Quadtree<T> _qtree;
             internal Node _parent, _ne, _se, _sw, _nw;
 
             internal readonly HashSet<T> _items = new HashSet<T>(CAPACITY);
@@ -89,23 +90,27 @@ namespace Dcrew.Spatial
                         int halfWidth = (int)MathF.Ceiling(Bounds.Width / 2f),
                             halfHeight = (int)MathF.Ceiling(Bounds.Height / 2f);
                         _nw = Pool<Node>.Spawn();
+                        _nw._qtree = _qtree;
                         _nw.Bounds = new Rectangle(Bounds.Left, Bounds.Top, halfWidth, halfHeight);
                         _nw._parent = this;
                         _sw = Pool<Node>.Spawn();
+                        _sw._qtree = _qtree;
                         int midY = Bounds.Top + halfHeight,
                             height = Bounds.Bottom - midY;
                         _sw.Bounds = new Rectangle(Bounds.Left, midY, halfWidth, height);
                         _sw._parent = this;
                         _ne = Pool<Node>.Spawn();
+                        _ne._qtree = _qtree;
                         int midX = Bounds.Left + halfWidth,
                             width = Bounds.Right - midX;
                         _ne.Bounds = new Rectangle(midX, Bounds.Top, width, halfHeight);
                         _ne._parent = this;
                         _se = Pool<Node>.Spawn();
+                        _se._qtree = _qtree;
                         _se.Bounds = new Rectangle(midX, midY, width, height);
                         _se._parent = this;
                         foreach (var i in _items)
-                            _stored[i] = (Bury(i, this, _stored[i].Pos), _stored[i].Pos);
+                            _qtree._item[i] = (Bury(i, this, _qtree._item[i].XY), _qtree._item[i].XY);
                         _items.Clear();
                     }
                     else
@@ -120,7 +125,7 @@ namespace Dcrew.Spatial
                 _items.Remove(item);
                 if (_parent == null)
                     return;
-                _nodesToClean.Add(_parent);
+                _qtree._nodesToClean.Add(_parent);
             }
             public IEnumerable<T> Query(Rectangle broad, Rectangle query)
             {
@@ -196,7 +201,7 @@ namespace Dcrew.Spatial
                 foreach (var i in AllSubItems)
                 {
                     _items.Add(i);
-                    _stored[i] = (this, _stored[i].Pos);
+                    _qtree._item[i] = (this, _qtree._item[i].XY);
                 }
                 _ne.FreeSubNodes();
                 _se.FreeSubNodes();
@@ -213,32 +218,37 @@ namespace Dcrew.Spatial
             }
         }
 
-        sealed class CleanNodes : IGameComponent, IUpdateable
+        internal sealed class CleanNodes : IGameComponent, IUpdateable
         {
-            public bool Enabled => true;
+            readonly Quadtree<T> _qtree;
 
+            public bool Enabled => true;
             public int UpdateOrder => int.MaxValue;
 
             public event EventHandler<EventArgs> EnabledChanged;
             public event EventHandler<EventArgs> UpdateOrderChanged;
 
+            internal CleanNodes(Quadtree<T> qtree) => _qtree = qtree;
+
             public void Initialize() { }
 
             public void Update(GameTime gameTime)
             {
-                foreach (var n in _nodesToClean)
+                foreach (var n in _qtree._nodesToClean)
                     n.Clean();
-                _nodesToClean.Clear();
-                if (_updates.HasFlag(Updates.AutoCleanNodes))
+                _qtree._nodesToClean.Clear();
+                if (_qtree._updates.HasFlag(Updates.AutoCleanNodes))
                 {
-                    _components.Remove(this);
-                    _updates &= ~Updates.AutoCleanNodes;
+                    _game.Components.Remove(this);
+                    _qtree._updates &= ~Updates.AutoCleanNodes;
                 }
             }
         }
 
-        sealed class ExpandTree : IGameComponent, IUpdateable
+        internal sealed class ExpandTree : IGameComponent, IUpdateable
         {
+            readonly Quadtree<T> _qtree;
+
             public bool Enabled => true;
 
             public int UpdateOrder => int.MaxValue;
@@ -246,37 +256,44 @@ namespace Dcrew.Spatial
             public event EventHandler<EventArgs> EnabledChanged;
             public event EventHandler<EventArgs> UpdateOrderChanged;
 
+            internal ExpandTree(Quadtree<T> qtree) => _qtree = qtree;
+
             public void Initialize() { }
 
             public void Update(GameTime gameTime)
             {
-                int newLeft = Math.Min(Bounds.Left, _extendToW),
-                    newTop = Math.Min(Bounds.Top, _extendToN),
-                    newWidth = Bounds.Right - newLeft,
-                    newHeight = Bounds.Bottom - newTop;
-                Bounds = new Rectangle(newLeft, newTop, Math.Max(newWidth, _extendToE - newLeft + 1), Math.Max(newHeight, _extendToS - newTop + 1));
-                _extendToN = int.MaxValue;
-                _extendToE = 0;
-                _extendToS = 0;
-                _extendToW = int.MaxValue;
-                if (_updates.HasFlag(Updates.AutoExpandTree))
+                int newLeft = Math.Min(_qtree.Bounds.Left, _qtree._extendToW),
+                    newTop = Math.Min(_qtree.Bounds.Top, _qtree._extendToN),
+                    newWidth = _qtree.Bounds.Right - newLeft,
+                    newHeight = _qtree.Bounds.Bottom - newTop;
+                _qtree.Bounds = new Rectangle(newLeft, newTop, Math.Max(newWidth, _qtree._extendToE - newLeft + 1), Math.Max(newHeight, _qtree._extendToS - newTop + 1));
+                _qtree._extendToN = int.MaxValue;
+                _qtree._extendToE = 0;
+                _qtree._extendToS = 0;
+                _qtree._extendToW = int.MaxValue;
+                if (_qtree._updates.HasFlag(Updates.AutoExpandTree))
                 {
-                    _components.Remove(this);
-                    _updates &= ~Updates.AutoExpandTree;
+                    _game.Components.Remove(this);
+                    _qtree._updates &= ~Updates.AutoExpandTree;
                 }
             }
         }
 
         /// <summary>Set the boundary rect of this tree</summary>
-        public static Rectangle Bounds
+        public Rectangle Bounds
         {
-            get => _mainNode.Bounds;
+            get => _node.Bounds;
             set
             {
-                var items = _stored.Keys.ToArray();
-                _mainNode.FreeSubNodes();
-                _mainNode.OnFree();
-                _mainNode.Bounds = value;
+                if (_node == null)
+                {
+                    _node = new Node { Bounds = value };
+                    return;
+                }
+                var items = _item.Keys.ToArray();
+                _node.FreeSubNodes();
+                _node.OnFree();
+                _node.Bounds = value;
                 static int NodeCount(Point b)
                 {
                     var r = 1;
@@ -287,42 +304,43 @@ namespace Dcrew.Spatial
                 Pool<Node>.EnsureCount(NodeCount(new Point(value.Width, value.Height)));
                 foreach (var i in items)
                 {
-                    var pos = _stored[i].Pos;
-                    _stored[i] = (_mainNode.Add(i, pos), pos);
+                    var xy = _item[i].XY;
+                    _item[i] = (_node.Add(i, xy), xy);
                 }
             }
         }
+
+        static readonly Game _game;
 
         static Quadtree()
         {
             foreach (var p in typeof(Game).GetProperties(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Static))
                 if (p.GetValue(_game) is Game g)
                     _game = g;
-            _components = _game.Components;
         }
 
         /// <summary>Returns true if <paramref name="item"/> is in the tree</summary>
-        public static bool Contains(T item) => _stored.ContainsKey(item);
+        public bool Contains(T item) => _item.ContainsKey(item);
         /// <summary>Return all items</summary>
-        public static IEnumerable<T> Items
+        public IEnumerable<T> Items
         {
             get
             {
-                foreach (var i in _stored)
+                foreach (var i in _item)
                     yield return i.Key;
             }
         }
         /// <summary>Return all items and their container rects</summary>
-        public static IEnumerable<(T Item, Rectangle Node)> Bundles
+        public IEnumerable<(T Item, Rectangle Node)> Bundles
         {
             get
             {
-                foreach (var i in _stored)
+                foreach (var i in _item)
                     yield return (i.Key, i.Value.Node.Bounds);
             }
         }
         /// <summary>Return all node bounds in this tree</summary>
-        public static IEnumerable<Rectangle> Nodes
+        public IEnumerable<Rectangle> Nodes
         {
             get
             {
@@ -340,35 +358,36 @@ namespace Dcrew.Spatial
                     foreach (var n2 in Nodes(n._nw))
                         yield return n2;
                 }
-                foreach (var n in Nodes(_mainNode))
+                foreach (var n in Nodes(_node))
                     yield return n.Bounds;
             }
         }
 
         static (T Item, Point HalfSize, Point Size) _maxSizeAABB;
-        static int _extendToN = int.MaxValue,
+        internal readonly Dictionary<T, (Node Node, Point XY)> _item = new Dictionary<T, (Node, Point)>();
+        internal readonly CleanNodes _cleanNodes;
+        internal readonly ExpandTree _expandTree;
+        internal readonly HashSet<Node> _nodesToClean = new HashSet<Node>();
+        int _extendToN = int.MaxValue,
             _extendToE = int.MinValue,
             _extendToS = int.MinValue,
             _extendToW = int.MaxValue;
-        static Updates _updates;
-        static event AddItem _addItem = InitAdd;
-
-        static readonly Game _game;
-        static readonly GameComponentCollection _components;
-        static readonly Node _mainNode = new Node();
-        static readonly IDictionary<T, (Node Node, Point Pos)> _stored = new Dictionary<T, (Node, Point)>();
-        static readonly CleanNodes _cleanNodes = new CleanNodes();
-        static readonly ExpandTree _expandTree = new ExpandTree();
-        static readonly HashSet<Node> _nodesToClean = new HashSet<Node>();
+        Updates _updates;
+        Node _node = new Node();
 
         delegate void AddItem(T item);
 
         [Flags] enum Updates : byte { ManualMode = 1, AutoCleanNodes = 2, AutoExpandTree = 4, ManualCleanNodes = 8, ManualExpandTree = 16 }
 
-        /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE</summary>
-        public static void Add(T item)
+        public Quadtree()
         {
-            _addItem?.Invoke(item);
+            _cleanNodes = new CleanNodes(this);
+            _expandTree = new ExpandTree(this);
+        }
+
+        /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE</summary>
+        public void Add(T item)
+        {
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
             var pos = aabb.Center;
             _stored.Add(item, (_mainNode.Add(item, pos), pos));
@@ -377,7 +396,7 @@ namespace Dcrew.Spatial
             TryExpandTree(pos);
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
-        public static void Update(T item)
+        public void Update(T item)
         {
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
             var pos = aabb.Center;
@@ -385,8 +404,8 @@ namespace Dcrew.Spatial
                 _maxSizeAABB = (item, new Point((int)MathF.Ceiling(aabb.Width / 2f), (int)MathF.Ceiling(aabb.Height / 2f)), new Point(aabb.Width, aabb.Height));
             if (TryExpandTree(pos))
                 return;
-            var c = _stored[item];
             if (c.Node.Bounds.Contains(pos) || c.Node._parent == null)
+            var c = _item[item];
             {
                 _stored[item] = (c.Node, pos);
                 return;
@@ -396,7 +415,7 @@ namespace Dcrew.Spatial
                 _updates |= Updates.ManualCleanNodes;
             else if (!_updates.HasFlag(Updates.AutoCleanNodes))
             {
-                _components.Add(_cleanNodes);
+                _game.Components.Add(_cleanNodes);
                 _updates |= Updates.AutoCleanNodes;
             }
             Node GetNewNode(Node n)
@@ -408,21 +427,21 @@ namespace Dcrew.Spatial
                 else
                     return GetNewNode(n._parent);
             }
-            _stored[item] = (GetNewNode(c.Node).Add(item, pos), pos);
+            _item[item] = (GetNewNode(c.Node).Add(item, xy), xy);
         }
         /// <summary>Removes <paramref name="item"/> from the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
-        public static void Remove(T item)
+        public void Remove(T item)
         {
-            _stored[item].Node.Remove(item);
+            _item[item].Node.Remove(item);
             if (_updates.HasFlag(Updates.ManualMode))
                 _updates |= Updates.ManualCleanNodes;
             else if (!_updates.HasFlag(Updates.AutoCleanNodes))
             {
-                _components.Add(_cleanNodes);
+                _game.Components.Add(_cleanNodes);
                 _updates |= Updates.AutoCleanNodes;
             }
-            _stored.Remove(item);
             if (ReferenceEquals(item, _maxSizeAABB.Item))
+            _item.Remove(item);
             {
                 _maxSizeAABB = (default, Point.Zero, Point.Zero);
                 foreach (T i in _stored.Keys)
@@ -431,27 +450,27 @@ namespace Dcrew.Spatial
             }
         }
         /// <summary>Removes all items and nodes from the tree</summary>
-        public static void Clear()
+        public void Clear()
         {
-            _mainNode.FreeSubNodes();
-            _mainNode.OnFree();
-            _stored.Clear();
             _maxSizeAABB = (default, Point.Zero, Point.Zero);
+            _node.FreeSubNodes();
+            _node.OnFree();
+            _item.Clear();
         }
         /// <summary>Query and return the items intersecting <paramref name="pos"/></summary>
-        public static IEnumerable<T> Query(Point pos)
+        public IEnumerable<T> Query(Point xy)
         {
             foreach (var t in _mainNode.Query(new Rectangle(pos.X - _maxSizeAABB.HalfSize.X, pos.Y - _maxSizeAABB.HalfSize.Y, _maxSizeAABB.Size.X + 1, _maxSizeAABB.Size.Y + 1), new Rectangle(pos, new Point(1))))
                 yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="pos"/></summary>
-        public static IEnumerable<T> Query(Vector2 pos)
+        public IEnumerable<T> Query(Vector2 xy)
         {
             foreach (var t in _mainNode.Query(new Rectangle((int)MathF.Round(pos.X - _maxSizeAABB.HalfSize.X), (int)MathF.Round(pos.Y - _maxSizeAABB.HalfSize.Y), _maxSizeAABB.Size.X + 1, _maxSizeAABB.Size.Y + 1), new Rectangle((int)MathF.Round(pos.X), (int)MathF.Round(pos.Y), 1, 1)))
                 yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
-        public static IEnumerable<T> Query(Rectangle area)
+        public IEnumerable<T> Query(Rectangle area)
         {
             foreach (var t in _mainNode.Query(new Rectangle(area.X - _maxSizeAABB.HalfSize.X, area.Y - _maxSizeAABB.HalfSize.Y, _maxSizeAABB.Size.X + area.Width, _maxSizeAABB.Size.Y + area.Height), area))
                 yield return t;
@@ -460,7 +479,7 @@ namespace Dcrew.Spatial
         /// <param name="area">Area (rectangle)</param>
         /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
         /// <param name="origin">Origin (in pixels) of <paramref name="area"/></param>
-        public static IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin)
+        public IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin)
         {
             area = Util.Rotate(area, angle, origin);
             foreach (var t in _mainNode.Query(new Rectangle(area.X - _maxSizeAABB.HalfSize.X, area.Y - _maxSizeAABB.HalfSize.Y, _maxSizeAABB.Size.X + area.Width, _maxSizeAABB.Size.Y + area.Height), area))
@@ -468,18 +487,18 @@ namespace Dcrew.Spatial
         }
 
         /// <summary>You need to call this if you don't use base.Update() in <see cref="Game.Update(GameTime)"/></summary>
-        public static void Update()
+        public void Update()
         {
             if (_updates.HasFlag(Updates.AutoCleanNodes))
             {
-                _components.Remove(_cleanNodes);
+                _game.Components.Remove(_cleanNodes);
                 _cleanNodes.Update(null);
             }
             else if (_updates.HasFlag(Updates.ManualCleanNodes))
                 _cleanNodes.Update(null);
             if (_updates.HasFlag(Updates.AutoExpandTree))
             {
-                _components.Remove(_expandTree);
+                _game.Components.Remove(_expandTree);
                 _expandTree.Update(null);
             }
             else if (_updates.HasFlag(Updates.ManualExpandTree))
@@ -488,9 +507,9 @@ namespace Dcrew.Spatial
         }
 
         /// <summary>Shrinks the tree to the smallest possible size</summary>
-        public static void Shrink()
+        public void Shrink()
         {
-            if (_stored.Count == 0)
+            if (_item.Count == 0)
                 return;
             Point min = new Point(int.MaxValue),
                 max = new Point(int.MinValue);
@@ -509,7 +528,7 @@ namespace Dcrew.Spatial
             Bounds = new Rectangle(min.X, min.Y, max.X - min.X + 1, max.Y - min.Y + 1);
         }
 
-        static bool TryExpandTree(Point pos)
+        bool TryExpandTree(Point pos)
         {
             if (Bounds.Left > pos.X || Bounds.Top > pos.Y || Bounds.Right < pos.X + 1 || Bounds.Bottom < pos.Y + 1)
             {
@@ -525,18 +544,12 @@ namespace Dcrew.Spatial
                     _updates |= Updates.ManualExpandTree;
                 else if (!_updates.HasFlag(Updates.AutoExpandTree))
                 {
-                    _components.Add(_expandTree);
+                    _game.Components.Add(_expandTree);
                     _updates |= Updates.AutoExpandTree;
                 }
                 return true;
             }
             return false;
-        }
-
-        static void InitAdd(T item)
-        {
-            Bounds = new Rectangle(item.AABB.Center, new Point(1));
-            _addItem -= InitAdd;
         }
     }
 }
