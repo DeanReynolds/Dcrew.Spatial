@@ -495,13 +495,13 @@ namespace Dcrew.Spatial
         /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
         public IEnumerable<T> Query(Point xy)
         {
-            foreach (var t in _node.Query(new Rectangle(xy.X - _maxWidthItem.HalfSize, xy.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size, _maxHeightItem.Size), new Rectangle(xy, new Point(1))))
+            foreach (var t in _node.Query(new Rectangle(xy.X - _maxWidthItem.HalfSize, xy.Y - _maxHeightItem.HalfSize, 1 + _maxWidthItem.Size, 1 + _maxHeightItem.Size), new Rectangle(xy, new Point(1))))
                 yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
         public IEnumerable<T> Query(Vector2 xy)
         {
-            foreach (var t in _node.Query(new Rectangle((int)MathF.Round(xy.X) - _maxWidthItem.HalfSize, (int)MathF.Round(xy.Y) - _maxHeightItem.HalfSize, _maxWidthItem.Size, _maxHeightItem.Size), new Rectangle((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y), 1, 1)))
+            foreach (var t in _node.Query(new Rectangle((int)MathF.Round(xy.X) - _maxWidthItem.HalfSize, (int)MathF.Round(xy.Y) - _maxHeightItem.HalfSize, 1 + _maxWidthItem.Size, 1 + _maxHeightItem.Size), new Rectangle((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y), 1, 1)))
                 yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
