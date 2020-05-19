@@ -368,6 +368,7 @@ namespace Dcrew.Spatial
         internal readonly CleanNodes _cleanNodes;
         internal readonly ExpandTree _expandTree;
         internal readonly HashSet<Node> _nodesToClean = new HashSet<Node>();
+
         int _extendToN = int.MaxValue,
             _extendToE = int.MinValue,
             _extendToS = int.MinValue,
@@ -389,25 +390,23 @@ namespace Dcrew.Spatial
         public void Add(T item)
         {
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
-            var pos = aabb.Center;
-            _stored.Add(item, (_mainNode.Add(item, pos), pos));
             if (aabb.Width > _maxSizeAABB.Size.X || aabb.Height > _maxSizeAABB.Size.Y)
                 _maxSizeAABB = (item, new Point((int)MathF.Ceiling(aabb.Width / 2f), (int)MathF.Ceiling(aabb.Height / 2f)), new Point(aabb.Width, aabb.Height));
-            TryExpandTree(pos);
+            Insert(item, aabb);
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public void Update(T item)
         {
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
-            var pos = aabb.Center;
             if (aabb.Width > _maxSizeAABB.Size.X || aabb.Height > _maxSizeAABB.Size.Y)
                 _maxSizeAABB = (item, new Point((int)MathF.Ceiling(aabb.Width / 2f), (int)MathF.Ceiling(aabb.Height / 2f)), new Point(aabb.Width, aabb.Height));
-            if (TryExpandTree(pos))
+            var xy = aabb.Center;
+            if (TryExpandTree(xy))
                 return;
-            if (c.Node.Bounds.Contains(pos) || c.Node._parent == null)
             var c = _item[item];
+            if (c.Node.Bounds.Contains(xy) || c.Node._parent == null)
             {
-                _stored[item] = (c.Node, pos);
+                _item[item] = (c.Node, xy);
                 return;
             }
             c.Node.Remove(item);
@@ -422,7 +421,7 @@ namespace Dcrew.Spatial
             {
                 if (n._parent == null)
                     return n;
-                if (n._parent.Bounds.Contains(pos))
+                if (n._parent.Bounds.Contains(xy))
                     return n._parent;
                 else
                     return GetNewNode(n._parent);
@@ -457,22 +456,22 @@ namespace Dcrew.Spatial
             _node.OnFree();
             _item.Clear();
         }
-        /// <summary>Query and return the items intersecting <paramref name="pos"/></summary>
+        /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
         public IEnumerable<T> Query(Point xy)
         {
-            foreach (var t in _mainNode.Query(new Rectangle(pos.X - _maxSizeAABB.HalfSize.X, pos.Y - _maxSizeAABB.HalfSize.Y, _maxSizeAABB.Size.X + 1, _maxSizeAABB.Size.Y + 1), new Rectangle(pos, new Point(1))))
+            foreach (var t in _node.Query(new Rectangle(xy.X - _maxWidthItem.HalfSize, xy.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size, _maxHeightItem.Size), new Rectangle(xy, new Point(1))))
                 yield return t;
         }
-        /// <summary>Query and return the items intersecting <paramref name="pos"/></summary>
+        /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
         public IEnumerable<T> Query(Vector2 xy)
         {
-            foreach (var t in _mainNode.Query(new Rectangle((int)MathF.Round(pos.X - _maxSizeAABB.HalfSize.X), (int)MathF.Round(pos.Y - _maxSizeAABB.HalfSize.Y), _maxSizeAABB.Size.X + 1, _maxSizeAABB.Size.Y + 1), new Rectangle((int)MathF.Round(pos.X), (int)MathF.Round(pos.Y), 1, 1)))
+            foreach (var t in _node.Query(new Rectangle((int)MathF.Round(xy.X) - _maxWidthItem.HalfSize, (int)MathF.Round(xy.Y) - _maxHeightItem.HalfSize, _maxWidthItem.Size, _maxHeightItem.Size), new Rectangle((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y), 1, 1)))
                 yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
         public IEnumerable<T> Query(Rectangle area)
         {
-            foreach (var t in _mainNode.Query(new Rectangle(area.X - _maxSizeAABB.HalfSize.X, area.Y - _maxSizeAABB.HalfSize.Y, _maxSizeAABB.Size.X + area.Width, _maxSizeAABB.Size.Y + area.Height), area))
+            foreach (var t in _node.Query(new Rectangle(area.X - _maxWidthItem.HalfSize, area.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size + area.Width, _maxHeightItem.Size + area.Height), area))
                 yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
@@ -482,7 +481,7 @@ namespace Dcrew.Spatial
         public IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin)
         {
             area = Util.Rotate(area, angle, origin);
-            foreach (var t in _mainNode.Query(new Rectangle(area.X - _maxSizeAABB.HalfSize.X, area.Y - _maxSizeAABB.HalfSize.Y, _maxSizeAABB.Size.X + area.Width, _maxSizeAABB.Size.Y + area.Height), area))
+            foreach (var t in _node.Query(new Rectangle(area.X - _maxWidthItem.HalfSize, area.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size + area.Width, _maxHeightItem.Size + area.Height), area))
                 yield return t;
         }
 
@@ -526,6 +525,19 @@ namespace Dcrew.Spatial
                     max.Y = pos.Y;
             }
             Bounds = new Rectangle(min.X, min.Y, max.X - min.X + 1, max.Y - min.Y + 1);
+        }
+
+        internal void Insert(T item, Rectangle aabb)
+        {
+            if (_node == null)
+                Bounds = new Rectangle(aabb.Center, new Point(1));
+            var xy = aabb.Center;
+            if (aabb.Width > _maxWidthItem.Size)
+                _maxWidthItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
+            if (aabb.Height > _maxHeightItem.Size)
+                _maxHeightItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
+            _item.Add(item, (_node.Add(item, xy), xy));
+            TryExpandTree(xy);
         }
 
         bool TryExpandTree(Point pos)
