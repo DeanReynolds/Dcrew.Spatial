@@ -398,6 +398,8 @@ namespace Dcrew.Spatial
         Updates _updates;
         Node _node;
 
+        readonly Stack<Node> _nodesToQuery = new Stack<Node>();
+
         delegate void AddItem(T item);
 
         [Flags] enum Updates : byte { ManualMode = 1, AutoCleanNodes = 2, AutoExpandTree = 4, ManualCleanNodes = 8, ManualExpandTree = 16 }
@@ -495,20 +497,43 @@ namespace Dcrew.Spatial
         /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
         public IEnumerable<T> Query(Point xy)
         {
-            foreach (var t in _node.Query(new Rectangle(xy.X - _maxWidthItem.HalfSize, xy.Y - _maxHeightItem.HalfSize, 1 + _maxWidthItem.Size, 1 + _maxHeightItem.Size), new Rectangle(xy, new Point(1))))
+            foreach (var t in Query(new Rectangle(xy.X, xy.Y, 1, 1)))
                 yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
         public IEnumerable<T> Query(Vector2 xy)
         {
-            foreach (var t in _node.Query(new Rectangle((int)MathF.Round(xy.X) - _maxWidthItem.HalfSize, (int)MathF.Round(xy.Y) - _maxHeightItem.HalfSize, 1 + _maxWidthItem.Size, 1 + _maxHeightItem.Size), new Rectangle((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y), 1, 1)))
+            foreach (var t in Query(new Rectangle((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y), 1, 1)))
                 yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
         public IEnumerable<T> Query(Rectangle area)
         {
-            foreach (var t in _node.Query(new Rectangle(area.X - _maxWidthItem.HalfSize, area.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size + area.Width, _maxHeightItem.Size + area.Height), area))
-                yield return t;
+            _nodesToQuery.Clear();
+            _nodesToQuery.Push(_node);
+            Node node;
+            var broad = new Rectangle(area.X - _maxWidthItem.HalfSize, area.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size + area.Width, _maxHeightItem.Size + area.Height);
+            do
+            {
+                node = _nodesToQuery.Pop();
+                if (node._nw == null)
+                {
+                    foreach (T i in node._items)
+                        if (area.Intersects(i.AABB))
+                            yield return i;
+                    continue;
+                }
+                if (node._ne.Bounds.Intersects(broad))
+                    _nodesToQuery.Push(node._ne);
+                if (node._se.Bounds.Intersects(broad))
+                    _nodesToQuery.Push(node._se);
+                if (node._sw.Bounds.Intersects(broad))
+                    _nodesToQuery.Push(node._sw);
+                if (node._nw.Bounds.Intersects(broad))
+                    _nodesToQuery.Push(node._nw);
+            }
+            while (_nodesToQuery.Count > 0);
+            yield break;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
         /// <param name="area">Area (rectangle)</param>
@@ -517,7 +542,7 @@ namespace Dcrew.Spatial
         public IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin)
         {
             area = Util.Rotate(area, angle, origin);
-            foreach (var t in _node.Query(new Rectangle(area.X - _maxWidthItem.HalfSize, area.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size + area.Width, _maxHeightItem.Size + area.Height), area))
+            foreach (var t in Query(area))
                 yield return t;
         }
 
