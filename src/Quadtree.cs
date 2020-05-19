@@ -287,7 +287,7 @@ namespace Dcrew.Spatial
             {
                 if (_node == null)
                 {
-                    _node = new Node { Bounds = value };
+                    _node = new Node { Bounds = value, _qtree = this };
                     return;
                 }
                 var items = _item.Keys.ToArray();
@@ -396,7 +396,7 @@ namespace Dcrew.Spatial
             _extendToS = int.MinValue,
             _extendToW = int.MaxValue;
         Updates _updates;
-        Node _node = new Node();
+        Node _node;
 
         delegate void AddItem(T item);
 
