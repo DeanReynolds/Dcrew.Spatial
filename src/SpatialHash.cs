@@ -17,7 +17,7 @@ namespace Dcrew.Spatial
             set
             {
                 _halfSpacing = (_spacing = value) / 2;
-                var bundles = _stored.ToArray();
+                var bundles = _item.ToArray();
                 foreach (var (_, n) in bundles)
                     if (_hash.ContainsKey(n))
                     {
@@ -30,19 +30,19 @@ namespace Dcrew.Spatial
                 {
                     var b = Bucket(i);
                     Add(i, b);
-                    _stored[i] = b;
+                    _item[i] = b;
                 }
             }
         }
 
         /// <summary>Returns true if <paramref name="item"/> is in the tree</summary>
-        public bool Contains(T item) => _stored.ContainsKey(item);
+        public bool Contains(T item) => _item.ContainsKey(item);
         /// <summary>Return all items</summary>
         public IEnumerable<T> Items
         {
             get
             {
-                foreach (var i in _stored)
+                foreach (var i in _item)
                     yield return i.Key;
             }
         }
@@ -51,13 +51,13 @@ namespace Dcrew.Spatial
         {
             get
             {
-                foreach (var i in _stored)
+                foreach (var i in _item)
                     yield return (i.Key, new Vector2(i.Value.X * _spacing + _halfSpacing, i.Value.Y * _spacing + _halfSpacing));
             }
         }
 
         readonly Dictionary<Point, HashSet<T>> _hash = new Dictionary<Point, HashSet<T>>();
-        readonly Dictionary<T, Point> _stored = new Dictionary<T, Point>();
+        readonly Dictionary<T, Point> _item = new Dictionary<T, Point>();
 
         int _spacing = 0,
             _halfSpacing;
@@ -69,14 +69,14 @@ namespace Dcrew.Spatial
         {
             var bucket = Bucket(item);
             Add(item, bucket);
-            _stored.Add(item, bucket);
+            _item.Add(item, bucket);
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         /// <returns>True if <paramref name="item"/> was moved to a new bucket, false otherwise</returns>
         public bool Update(T item)
         {
             Point bucket = Bucket(item),
-                i = _stored[item];
+                i = _item[item];
             if (bucket == i)
                 return false;
             var t = _hash[i];
@@ -89,13 +89,13 @@ namespace Dcrew.Spatial
             else
                 t.Remove(item);
             Add(item, bucket);
-            _stored[item] = bucket;
+            _item[item] = bucket;
             return true;
         }
         /// <summary>Removes <paramref name="item"/> from the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public void Remove(T item)
         {
-            var i = _stored[item];
+            var i = _item[item];
             var t = _hash[i];
             if (t.Count <= 1)
             {
@@ -105,7 +105,7 @@ namespace Dcrew.Spatial
             }
             else
                 t.Remove(item);
-            _stored.Remove(item);
+            _item.Remove(item);
         }
         /// <summary>Removes all items and buckets from the tree</summary>
         public void Clear()
@@ -116,7 +116,7 @@ namespace Dcrew.Spatial
                 Pool<HashSet<T>>.Free(t);
             }
             _hash.Clear();
-            _stored.Clear();
+            _item.Clear();
         }
         /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
         public IEnumerable<T> Query(Point xy) => InQuery(new Point(xy.X / Spacing, xy.Y / Spacing));
