@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 
-namespace Dcrew.MonoGame._2D_Spatial_Partition
+namespace Dcrew.Spatial
 {
     /// <summary>Axis-aligned 2D bounding-box/rectangle</summary>
     public interface IAABB

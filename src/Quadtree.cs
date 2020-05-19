@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace Dcrew.MonoGame._2D_Spatial_Partition
+namespace Dcrew.Spatial
 {
     /// <summary>For fast and accurate spatial partitioning. Set <see cref="Bounds"/> before use</summary>
     public static class Quadtree<T> where T : class, IAABB

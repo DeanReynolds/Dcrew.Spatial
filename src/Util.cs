@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Dcrew.MonoGame._2D_Spatial_Partition
+namespace Dcrew.Spatial
 {
     static class Util
     {

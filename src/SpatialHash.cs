@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Dcrew.MonoGame._2D_Spatial_Partition
+namespace Dcrew.Spatial
 {
     /// <summary>For very fast but approximate spatial partitioning. See <see cref="Spacing"/> before use</summary>
     public static class SpatialHash<T> where T : class, IAABB
