@@ -127,52 +127,6 @@ namespace Dcrew.Spatial
                     return;
                 _qtree._nodesToClean.Add(_parent);
             }
-            public IEnumerable<T> Query(Rectangle broad, Rectangle query)
-            {
-                if (_nw == null)
-                {
-                    foreach (T i in _items)
-                        if (query.Intersects(i.AABB))
-                            yield return i;
-                    yield break;
-                }
-                if (_ne.Bounds.Contains(broad))
-                {
-                    foreach (var i in _ne.Query(broad, query))
-                        yield return i;
-                    yield break;
-                }
-                if (_se.Bounds.Contains(broad))
-                {
-                    foreach (var i in _se.Query(broad, query))
-                        yield return i;
-                    yield break;
-                }
-                if (_sw.Bounds.Contains(broad))
-                {
-                    foreach (var i in _sw.Query(broad, query))
-                        yield return i;
-                    yield break;
-                }
-                if (_nw.Bounds.Contains(broad))
-                {
-                    foreach (var i in _nw.Query(broad, query))
-                        yield return i;
-                    yield break;
-                }
-                if (broad.Contains(_ne.Bounds) || _ne.Bounds.Intersects(broad))
-                    foreach (var i in _ne.Query(broad, query))
-                        yield return i;
-                if (broad.Contains(_se.Bounds) || _se.Bounds.Intersects(broad))
-                    foreach (var i in _se.Query(broad, query))
-                        yield return i;
-                if (broad.Contains(_sw.Bounds) || _sw.Bounds.Intersects(broad))
-                    foreach (var i in _sw.Query(broad, query))
-                        yield return i;
-                if (broad.Contains(_nw.Bounds) || _nw.Bounds.Intersects(broad))
-                    foreach (var i in _nw.Query(broad, query))
-                        yield return i;
-            }
 
             public void OnSpawn() { }
             public void OnFree() => _items.Clear();
@@ -360,8 +314,7 @@ namespace Dcrew.Spatial
                     foreach (var n2 in Nodes(n._nw))
                         yield return n2;
                 }
-                foreach (var n in Nodes(_node))
-                    yield return n.Bounds;
+                while (_nodesToLoop.Count > 0);
             }
         }
         /// <summary>Return count of all nodes</summary>
@@ -398,7 +351,7 @@ namespace Dcrew.Spatial
         Updates _updates;
         Node _node;
 
-        readonly Stack<Node> _nodesToQuery = new Stack<Node>();
+        readonly Stack<Node> _nodesToLoop = new Stack<Node>();
 
         delegate void AddItem(T item);
 
@@ -509,13 +462,13 @@ namespace Dcrew.Spatial
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
         public IEnumerable<T> Query(Rectangle area)
         {
-            _nodesToQuery.Clear();
-            _nodesToQuery.Push(_node);
+            _nodesToLoop.Clear();
+            _nodesToLoop.Push(_node);
             Node node;
             var broad = new Rectangle(area.X - _maxWidthItem.HalfSize, area.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size + area.Width, _maxHeightItem.Size + area.Height);
             do
             {
-                node = _nodesToQuery.Pop();
+                node = _nodesToLoop.Pop();
                 if (node._nw == null)
                 {
                     foreach (T i in node._items)
@@ -524,15 +477,15 @@ namespace Dcrew.Spatial
                     continue;
                 }
                 if (node._ne.Bounds.Intersects(broad))
-                    _nodesToQuery.Push(node._ne);
+                    _nodesToLoop.Push(node._ne);
                 if (node._se.Bounds.Intersects(broad))
-                    _nodesToQuery.Push(node._se);
+                    _nodesToLoop.Push(node._se);
                 if (node._sw.Bounds.Intersects(broad))
-                    _nodesToQuery.Push(node._sw);
+                    _nodesToLoop.Push(node._sw);
                 if (node._nw.Bounds.Intersects(broad))
-                    _nodesToQuery.Push(node._nw);
+                    _nodesToLoop.Push(node._nw);
             }
-            while (_nodesToQuery.Count > 0);
+            while (_nodesToLoop.Count > 0);
             yield break;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
