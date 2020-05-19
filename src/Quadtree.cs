@@ -363,12 +363,13 @@ namespace Dcrew.Spatial
             }
         }
 
-        static (T Item, Point HalfSize, Point Size) _maxSizeAABB;
         internal readonly Dictionary<T, (Node Node, Point XY)> _item = new Dictionary<T, (Node, Point)>();
         internal readonly CleanNodes _cleanNodes;
         internal readonly ExpandTree _expandTree;
         internal readonly HashSet<Node> _nodesToClean = new HashSet<Node>();
 
+        (T Item, int Size, int HalfSize) _maxWidthItem,
+            _maxHeightItem;
         int _extendToN = int.MaxValue,
             _extendToE = int.MinValue,
             _extendToS = int.MinValue,
@@ -390,17 +391,17 @@ namespace Dcrew.Spatial
         public void Add(T item)
         {
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
-            if (aabb.Width > _maxSizeAABB.Size.X || aabb.Height > _maxSizeAABB.Size.Y)
-                _maxSizeAABB = (item, new Point((int)MathF.Ceiling(aabb.Width / 2f), (int)MathF.Ceiling(aabb.Height / 2f)), new Point(aabb.Width, aabb.Height));
             Insert(item, aabb);
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public void Update(T item)
         {
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
-            if (aabb.Width > _maxSizeAABB.Size.X || aabb.Height > _maxSizeAABB.Size.Y)
-                _maxSizeAABB = (item, new Point((int)MathF.Ceiling(aabb.Width / 2f), (int)MathF.Ceiling(aabb.Height / 2f)), new Point(aabb.Width, aabb.Height));
             var xy = aabb.Center;
+            if (aabb.Width > _maxWidthItem.Size)
+                _maxWidthItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
+            if (aabb.Height > _maxHeightItem.Size)
+                _maxHeightItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
             if (TryExpandTree(xy))
                 return;
             var c = _item[item];
@@ -439,22 +440,36 @@ namespace Dcrew.Spatial
                 _game.Components.Add(_cleanNodes);
                 _updates |= Updates.AutoCleanNodes;
             }
-            if (ReferenceEquals(item, _maxSizeAABB.Item))
             _item.Remove(item);
+            if (ReferenceEquals(item, _maxWidthItem.Item))
             {
-                _maxSizeAABB = (default, Point.Zero, Point.Zero);
-                foreach (T i in _stored.Keys)
-                    if (i.AABB.Width > _maxSizeAABB.Size.X || i.AABB.Height > _maxSizeAABB.Size.Y)
-                        _maxSizeAABB = (i, new Point((int)MathF.Ceiling(i.AABB.Width / 2f), (int)MathF.Ceiling(i.AABB.Height / 2f)), new Point(i.AABB.Width, i.AABB.Height));
+                _maxWidthItem = (default, 0, 0);
+                foreach (T i in _item.Keys)
+                {
+                    var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
+                    if (aabb.Width > _maxWidthItem.Size)
+                        _maxWidthItem = (i, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
+                }
+            }
+            if (ReferenceEquals(item, _maxHeightItem.Item))
+            {
+                _maxHeightItem = (default, 0, 0);
+                foreach (T i in _item.Keys)
+                {
+                    var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
+                    if (i.AABB.Height > _maxHeightItem.Size)
+                        _maxHeightItem = (i, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
+                }
             }
         }
         /// <summary>Removes all items and nodes from the tree</summary>
         public void Clear()
         {
-            _maxSizeAABB = (default, Point.Zero, Point.Zero);
             _node.FreeSubNodes();
             _node.OnFree();
             _item.Clear();
+            _maxWidthItem = (default, 0, 0);
+            _maxHeightItem = (default, 0, 0);
         }
         /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
         public IEnumerable<T> Query(Point xy)
