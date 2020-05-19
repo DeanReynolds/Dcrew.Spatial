@@ -46,6 +46,8 @@ namespace Dcrew.Spatial
                     yield return i.Key;
             }
         }
+        /// <summary>Return count of all items</summary>
+        public int ItemCount => _item.Count;
         /// <summary>Return all items and their container points</summary>
         public IEnumerable<(T Item, Vector2 Node)> Bundles
         {
