@@ -4,8 +4,10 @@ using System.Collections.Generic;
 
 namespace Dcrew.Spatial
 {
+    /// <summary>A <see cref="Quadtree{T}"/> using <see cref="Apos.History"/> to allow for undoing/redoing</summary>
     public class HistoryQuadtree<T> : History where T : class, IAABB
     {
+        /// <summary>Set the boundary rect of this tree</summary>
         public Rectangle Bounds
         {
             get => _tree.Bounds;
