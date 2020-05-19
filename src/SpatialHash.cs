@@ -6,18 +6,17 @@ using System.Linq;
 namespace Dcrew.Spatial
 {
     /// <summary>For very fast but approximate spatial partitioning. See <see cref="Spacing"/> before use</summary>
-    public static class SpatialHash<T> where T : class, IAABB
+    public class SpatialHash<T> where T : class, IAABB
     {
         const int DEFAULT_SPACING = 50;
 
         /// <summary>Set to your largest item collision radius. Default: 50</summary>
-        public static int Spacing
+        public int Spacing
         {
             get => _spacing;
             set
             {
-                _spacing = value;
-                _halfSpacing = _spacing / 2;
+                _halfSpacing = (_spacing = value) / 2;
                 var bundles = _stored.ToArray();
                 foreach (var (_, n) in bundles)
                     if (_hash.ContainsKey(n))
@@ -37,9 +36,9 @@ namespace Dcrew.Spatial
         }
 
         /// <summary>Returns true if <paramref name="item"/> is in the tree</summary>
-        public static bool Contains(T item) => _stored.ContainsKey(item);
+        public bool Contains(T item) => _stored.ContainsKey(item);
         /// <summary>Return all items</summary>
-        public static IEnumerable<T> Items
+        public IEnumerable<T> Items
         {
             get
             {
@@ -48,7 +47,7 @@ namespace Dcrew.Spatial
             }
         }
         /// <summary>Return all items and their container points</summary>
-        public static IEnumerable<(T Item, Vector2 Node)> Bundles
+        public IEnumerable<(T Item, Vector2 Node)> Bundles
         {
             get
             {
@@ -57,14 +56,16 @@ namespace Dcrew.Spatial
             }
         }
 
-        static readonly Dictionary<Point, HashSet<T>> _hash = new Dictionary<Point, HashSet<T>>();
-        static readonly Dictionary<T, Point> _stored = new Dictionary<T, Point>();
+        readonly Dictionary<Point, HashSet<T>> _hash = new Dictionary<Point, HashSet<T>>();
+        readonly Dictionary<T, Point> _stored = new Dictionary<T, Point>();
 
-        static int _spacing = DEFAULT_SPACING,
-            _halfSpacing = _spacing / 2;
+        int _spacing = 0,
+            _halfSpacing;
+
+        public SpatialHash(int spacing = DEFAULT_SPACING) => _halfSpacing = (_spacing = spacing) / 2;
 
         /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE</summary>
-        public static void Add(T item)
+        public void Add(T item)
         {
             var bucket = Bucket(item);
             Add(item, bucket);
@@ -72,7 +73,7 @@ namespace Dcrew.Spatial
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         /// <returns>True if <paramref name="item"/> was moved to a new bucket, false otherwise</returns>
-        public static bool Update(T item)
+        public bool Update(T item)
         {
             Point bucket = Bucket(item),
                 i = _stored[item];
@@ -92,7 +93,7 @@ namespace Dcrew.Spatial
             return true;
         }
         /// <summary>Removes <paramref name="item"/> from the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
-        public static void Remove(T item)
+        public void Remove(T item)
         {
             var i = _stored[item];
             var t = _hash[i];
@@ -107,7 +108,7 @@ namespace Dcrew.Spatial
             _stored.Remove(item);
         }
         /// <summary>Removes all items and buckets from the tree</summary>
-        public static void Clear()
+        public void Clear()
         {
             foreach (var t in _hash.Values)
             {
@@ -117,12 +118,12 @@ namespace Dcrew.Spatial
             _hash.Clear();
             _stored.Clear();
         }
-        /// <summary>Query and return the items intersecting <paramref name="pos"/></summary>
-        public static IEnumerable<T> Query(Point pos) => InQuery(new Point(pos.X / Spacing, pos.Y / Spacing));
-        /// <summary>Query and return the items intersecting <paramref name="pos"/></summary>
-        public static IEnumerable<T> Query(Vector2 pos) => InQuery(new Point((int)(pos.X / Spacing), (int)(pos.Y / Spacing)));
+        /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
+        public IEnumerable<T> Query(Point xy) => InQuery(new Point(xy.X / Spacing, xy.Y / Spacing));
+        /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
+        public IEnumerable<T> Query(Vector2 xy) => InQuery(new Point((int)(xy.X / Spacing), (int)(xy.Y / Spacing)));
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
-        public static IEnumerable<T> Query(Rectangle area)
+        public IEnumerable<T> Query(Rectangle area)
         {
             int x = area.X / Spacing,
                 y = area.Y / Spacing;
@@ -153,21 +154,21 @@ namespace Dcrew.Spatial
         /// <param name="area">Area (rectangle)</param>
         /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
         /// <param name="origin">Origin of <paramref name="area"/></param>
-        public static IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin)
+        public IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin)
         {
             area = Util.Rotate(area, angle, origin);
             foreach (var t in Query(area))
                 yield return t;
         }
 
-        static Point Bucket(T item)
+        Point Bucket(T item)
         {
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
             var pos = aabb.Center;
             return new Point(pos.X / Spacing, pos.Y / Spacing);
         }
 
-        static void Add(T obj, Point bucket)
+        void Add(T obj, Point bucket)
         {
             if (!_hash.ContainsKey(bucket))
             {
@@ -179,7 +180,7 @@ namespace Dcrew.Spatial
             _hash[bucket].Add(obj);
         }
 
-        static IEnumerable<T> InQuery(Point p)
+        IEnumerable<T> InQuery(Point p)
         {
             var bucket = p;
             if (_hash.ContainsKey(bucket))
