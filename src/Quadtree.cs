@@ -330,6 +330,8 @@ namespace Dcrew.Spatial
                     yield return i.Key;
             }
         }
+        /// <summary>Return count of all items</summary>
+        public int ItemCount => _item.Count;
         /// <summary>Return all items and their container rects</summary>
         public IEnumerable<(T Item, Rectangle Node)> Bundles
         {
@@ -360,6 +362,25 @@ namespace Dcrew.Spatial
                 }
                 foreach (var n in Nodes(_node))
                     yield return n.Bounds;
+            }
+        }
+        /// <summary>Return count of all nodes</summary>
+        public int NodeCount
+        {
+            get
+            {
+                static int NodeCount(Node n)
+                {
+                    int count = 1;
+                    if (n._nw == null)
+                        return count;
+                    count += NodeCount(n._ne);
+                    count += NodeCount(n._se);
+                    count += NodeCount(n._sw);
+                    count += NodeCount(n._nw);
+                    return count;
+                }
+                return NodeCount(_node);
             }
         }
 
