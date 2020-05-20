@@ -16,56 +16,7 @@ namespace Dcrew.Spatial
 
             public Rectangle Bounds { get; internal set; }
 
-            public int Count
-            {
-                get
-                {
-                    int c = _items.Count;
-                    if (_nw != null)
-                    {
-                        c += _ne.Count;
-                        c += _se.Count;
-                        c += _sw.Count;
-                        c += _nw.Count;
-                    }
-                    return c;
-                }
-            }
-            public IEnumerable<T> AllItems
-            {
-                get
-                {
-                    foreach (var i in _items)
-                        yield return i;
-                    if (_nw != null)
-                    {
-                        foreach (var i in _ne.AllItems)
-                            yield return i;
-                        foreach (var i in _se.AllItems)
-                            yield return i;
-                        foreach (var i in _sw.AllItems)
-                            yield return i;
-                        foreach (var i in _nw.AllItems)
-                            yield return i;
-                    }
-                }
-            }
-            public IEnumerable<T> AllSubItems
-            {
-                get
-                {
-                    foreach (var i in _ne.AllItems)
-                        yield return i;
-                    foreach (var i in _se.AllItems)
-                        yield return i;
-                    foreach (var i in _sw.AllItems)
-                        yield return i;
-                    foreach (var i in _nw.AllItems)
-                        yield return i;
-                }
-            }
-
-            internal Quadtree<T> _qtree;
+            internal Quadtree<T> _tree;
             internal Node _parent, _ne, _se, _sw, _nw;
 
             internal readonly HashSet<T> _items = new HashSet<T>(CAPACITY);
@@ -150,13 +101,43 @@ namespace Dcrew.Spatial
             }
             internal void Clean()
             {
-                if (_nw == null || Count >= CAPACITY)
-                    return;
-                foreach (var i in AllSubItems)
+                var count = 0;
+                _tree._nodesToLoop.Push(this);
+                Node node;
+                do
                 {
-                    _items.Add(i);
-                    _qtree._item[i] = (this, _qtree._item[i].XY);
+                    node = _tree._nodesToLoop.Pop();
+                    count += node._items.Count;
+                    if (node._nw == null)
+                        continue;
+                    _tree._nodesToLoop.Push(node._ne);
+                    _tree._nodesToLoop.Push(node._se);
+                    _tree._nodesToLoop.Push(node._sw);
+                    _tree._nodesToLoop.Push(node._nw);
                 }
+                while (_tree._nodesToLoop.Count > 0);
+                if (_nw == null || count >= CAPACITY)
+                    return;
+                _tree._nodesToLoop.Push(_ne);
+                _tree._nodesToLoop.Push(_se);
+                _tree._nodesToLoop.Push(_sw);
+                _tree._nodesToLoop.Push(_nw);
+                do
+                {
+                    node = _tree._nodesToLoop.Pop();
+                    foreach (var i in node._items)
+                    {
+                        _items.Add(i);
+                        _tree._item[i] = (this, _tree._item[i].XY);
+                    }
+                    if (node._nw == null)
+                        continue;
+                    _tree._nodesToLoop.Push(node._ne);
+                    _tree._nodesToLoop.Push(node._se);
+                    _tree._nodesToLoop.Push(node._sw);
+                    _tree._nodesToLoop.Push(node._nw);
+                }
+                while (_tree._nodesToLoop.Count > 0);
                 _ne.FreeSubNodes();
                 _se.FreeSubNodes();
                 _sw.FreeSubNodes();
