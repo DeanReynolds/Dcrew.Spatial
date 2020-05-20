@@ -90,27 +90,27 @@ namespace Dcrew.Spatial
                         int halfWidth = (int)MathF.Ceiling(Bounds.Width / 2f),
                             halfHeight = (int)MathF.Ceiling(Bounds.Height / 2f);
                         _nw = Pool<Node>.Spawn();
-                        _nw._qtree = _qtree;
+                        _nw._tree = _tree;
                         _nw.Bounds = new Rectangle(Bounds.Left, Bounds.Top, halfWidth, halfHeight);
                         _nw._parent = this;
                         _sw = Pool<Node>.Spawn();
-                        _sw._qtree = _qtree;
+                        _sw._tree = _tree;
                         int midY = Bounds.Top + halfHeight,
                             height = Bounds.Bottom - midY;
                         _sw.Bounds = new Rectangle(Bounds.Left, midY, halfWidth, height);
                         _sw._parent = this;
                         _ne = Pool<Node>.Spawn();
-                        _ne._qtree = _qtree;
+                        _ne._tree = _tree;
                         int midX = Bounds.Left + halfWidth,
                             width = Bounds.Right - midX;
                         _ne.Bounds = new Rectangle(midX, Bounds.Top, width, halfHeight);
                         _ne._parent = this;
                         _se = Pool<Node>.Spawn();
-                        _se._qtree = _qtree;
+                        _se._tree = _tree;
                         _se.Bounds = new Rectangle(midX, midY, width, height);
                         _se._parent = this;
                         foreach (var i in _items)
-                            _qtree._item[i] = (Bury(i, this, _qtree._item[i].XY), _qtree._item[i].XY);
+                            _tree._item[i] = (Bury(i, this, _tree._item[i].XY), _tree._item[i].XY);
                         _items.Clear();
                     }
                     else
@@ -125,7 +125,7 @@ namespace Dcrew.Spatial
                 _items.Remove(item);
                 if (_parent == null)
                     return;
-                _qtree._nodesToClean.Add(_parent);
+                _tree._nodesToClean.Add(_parent);
             }
 
             public void OnSpawn() { }
@@ -236,18 +236,18 @@ namespace Dcrew.Spatial
         /// <summary>Set the boundary rect of this tree</summary>
         public Rectangle Bounds
         {
-            get => _node.Bounds;
+            get => _root.Bounds;
             set
             {
-                if (_node == null)
+                if (_root == null)
                 {
-                    _node = new Node { Bounds = value, _qtree = this };
+                    _root = new Node { Bounds = value, _tree = this };
                     return;
                 }
                 var items = _item.Keys.ToArray();
-                _node.FreeSubNodes();
-                _node.OnFree();
-                _node.Bounds = value;
+                _root.FreeSubNodes();
+                _root.OnFree();
+                _root.Bounds = value;
                 static int NodeCount(Point b)
                 {
                     var r = 1;
@@ -259,7 +259,7 @@ namespace Dcrew.Spatial
                 foreach (var i in items)
                 {
                     var xy = _item[i].XY;
-                    _item[i] = (_node.Add(i, xy), xy);
+                    _item[i] = (_root.Add(i, xy), xy);
                 }
             }
         }
@@ -300,8 +300,7 @@ namespace Dcrew.Spatial
         {
             get
             {
-                _nodesToLoop.Clear();
-                _nodesToLoop.Push(_node);
+                _nodesToLoop.Push(_root);
                 Node node;
                 do
                 {
@@ -333,7 +332,7 @@ namespace Dcrew.Spatial
                     count += NodeCount(n._nw);
                     return count;
                 }
-                return NodeCount(_node);
+                return NodeCount(_root);
             }
         }
 
@@ -341,6 +340,7 @@ namespace Dcrew.Spatial
         internal readonly CleanNodes _cleanNodes;
         internal readonly ExpandTree _expandTree;
         internal readonly HashSet<Node> _nodesToClean = new HashSet<Node>();
+        internal readonly Stack<Node> _nodesToLoop = new Stack<Node>();
 
         (T Item, int Size, int HalfSize) _maxWidthItem,
             _maxHeightItem;
@@ -349,9 +349,7 @@ namespace Dcrew.Spatial
             _extendToS = int.MinValue,
             _extendToW = int.MaxValue;
         Updates _updates;
-        Node _node;
-
-        readonly Stack<Node> _nodesToLoop = new Stack<Node>();
+        Node _root;
 
         delegate void AddItem(T item);
 
@@ -441,8 +439,8 @@ namespace Dcrew.Spatial
         /// <summary>Removes all items and nodes from the tree</summary>
         public void Clear()
         {
-            _node.FreeSubNodes();
-            _node.OnFree();
+            _root.FreeSubNodes();
+            _root.OnFree();
             _item.Clear();
             _maxWidthItem = (default, 0, 0);
             _maxHeightItem = (default, 0, 0);
@@ -462,8 +460,7 @@ namespace Dcrew.Spatial
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
         public IEnumerable<T> Query(Rectangle area)
         {
-            _nodesToLoop.Clear();
-            _nodesToLoop.Push(_node);
+            _nodesToLoop.Push(_root);
             Node node;
             var broad = new Rectangle(area.X - _maxWidthItem.HalfSize, area.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size + area.Width, _maxHeightItem.Size + area.Height);
             do
@@ -543,14 +540,14 @@ namespace Dcrew.Spatial
 
         internal void Insert(T item, Rectangle aabb)
         {
-            if (_node == null)
+            if (_root == null)
                 Bounds = new Rectangle(aabb.Center, new Point(1));
             var xy = aabb.Center;
             if (aabb.Width > _maxWidthItem.Size)
                 _maxWidthItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
             if (aabb.Height > _maxHeightItem.Size)
                 _maxHeightItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
-            _item.Add(item, (_node.Add(item, xy), xy));
+            _item.Add(item, (_root.Add(item, xy), xy));
             TryExpandTree(xy);
         }
 
