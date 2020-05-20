@@ -7,7 +7,7 @@
     <Authors>Dcrew</Authors>
     <Company>DcrewGames</Company>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <RepositoryUrl>https://github.com/DeanReynolds/Dcrew.MonoGame.2D-Spatial-Partition</RepositoryUrl>
+    <RepositoryUrl>https://github.com/DeanReynolds/Dcrew.Spatial</RepositoryUrl>
     <PackageTags>MonoGame</PackageTags>
     <PackageId>Dcrew.Spatial</PackageId>
     <Version>1.4.0</Version>
