@@ -10,7 +10,7 @@ namespace Dcrew.Spatial
     /// <summary>For fast and accurate spatial partitioning. Set <see cref="Bounds"/> before use</summary>
     public sealed class Quadtree<T> where T : class, IAABB
     {
-        internal sealed class Node : IPoolable
+        internal sealed class Node
         {
             public const int CAPACITY = 16;
 
@@ -20,9 +20,6 @@ namespace Dcrew.Spatial
             internal Node _parent, _ne, _se, _sw, _nw;
 
             internal readonly HashSet<T> _items = new HashSet<T>(CAPACITY);
-
-            public void OnSpawn() { }
-            public void OnFree() => _items.Clear();
 
             internal void FreeNodes()
             {
@@ -40,6 +37,7 @@ namespace Dcrew.Spatial
                 do
                 {
                     node = _tree._nodesToLoop.Pop();
+                    node._items.Clear();
                     Pool<Node>.Free(node);
                     if (node._nw == null)
                         continue;
@@ -91,6 +89,7 @@ namespace Dcrew.Spatial
                         _items.Add(i);
                         _tree._item[i] = (this, _tree._item[i].XY);
                     }
+                    node._items.Clear();
                     Pool<Node>.Free(node);
                     if (node._nw == null)
                         continue;
@@ -133,7 +132,6 @@ namespace Dcrew.Spatial
                 }
             }
         }
-
         internal sealed class ExpandTree : IGameComponent, IUpdateable
         {
             readonly Quadtree<T> _qtree;
@@ -181,7 +179,7 @@ namespace Dcrew.Spatial
                 }
                 var items = _item.Keys.ToArray();
                 _root.FreeNodes();
-                _root.OnFree();
+                _root._items.Clear();
                 _root.Bounds = value;
                 static int NodeCount(Point b)
                 {
@@ -388,7 +386,7 @@ namespace Dcrew.Spatial
         public void Clear()
         {
             _root.FreeNodes();
-            _root.OnFree();
+            _root._items.Clear();
             _item.Clear();
             _maxWidthItem = (default, 0, 0);
             _maxHeightItem = (default, 0, 0);
