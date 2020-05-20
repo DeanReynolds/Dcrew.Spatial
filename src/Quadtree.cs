@@ -538,26 +538,15 @@ namespace Dcrew.Spatial
                     node._se._parent = node;
                     foreach (var i in node._items)
                     {
+						var n = node._nw;
                         if (node._ne.Bounds.Contains(_item[i].XY))
-                        {
-                            node._ne._items.Add(i);
-                            _item[i] = (node._ne, _item[i].XY);
-                        }
+							n = node._ne;
                         else if (node._se.Bounds.Contains(_item[i].XY))
-                        {
-                            node._se._items.Add(i);
-                            _item[i] = (node._se, _item[i].XY);
-                        }
+							n = node._se;
                         else if (node._sw.Bounds.Contains(_item[i].XY))
-                        {
-                            node._sw._items.Add(i);
-                            _item[i] = (node._sw, _item[i].XY);
-                        }
-                        else if (node._nw.Bounds.Contains(_item[i].XY))
-                        {
-                            node._nw._items.Add(i);
-                            _item[i] = (node._nw, _item[i].XY);
-                        }
+							n = node._sw;
+                        n._items.Add(i);
+                        _item[i] = (n, _item[i].XY);
                     }
                     node._items.Clear();
                     if (node._ne.Bounds.Contains(xy))
@@ -566,7 +555,7 @@ namespace Dcrew.Spatial
                         _nodesToLoop.Push(node._se);
                     else if (node._sw.Bounds.Contains(xy))
                         _nodesToLoop.Push(node._sw);
-                    else if (node._nw.Bounds.Contains(xy))
+                    else
                         _nodesToLoop.Push(node._nw);
                 }
                 else
