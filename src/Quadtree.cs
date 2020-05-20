@@ -12,7 +12,7 @@ namespace Dcrew.Spatial
     {
         internal sealed class Node : IPoolable
         {
-            const int CAPACITY = 8;
+            public const int CAPACITY = 16;
 
             public Rectangle Bounds { get; internal set; }
 
