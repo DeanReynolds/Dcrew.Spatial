@@ -1,4 +1,4 @@
-# Dcrew.MonoGame.2D Spatial Partition
+# Dcrew.Spatial
  A set of highly-optimized, flexible and powerful 2D spatial partitions for [MonoGame](https://github.com/MonoGame/MonoGame)
 
 ## Build
