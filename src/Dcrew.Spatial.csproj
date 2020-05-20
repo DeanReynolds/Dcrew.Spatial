@@ -27,8 +27,4 @@
     </None>
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\..\Documents\Visual Studio 2017\Projects\Apos.Engine\src\Apos.Engine.csproj" />
-  </ItemGroup>
-
 </Project>
