@@ -21,86 +21,43 @@ namespace Dcrew.Spatial
 
             internal readonly HashSet<T> _items = new HashSet<T>(CAPACITY);
 
-            public Node Add(T item, Point pos)
-            {
-                static Node Bury(T i, Node n, Point p)
-                {
-                    if (n._ne.Bounds.Contains(p))
-                        return n._ne.Add(i, p);
-                    if (n._se.Bounds.Contains(p))
-                        return n._se.Add(i, p);
-                    if (n._sw.Bounds.Contains(p))
-                        return n._sw.Add(i, p);
-                    if (n._nw.Bounds.Contains(p))
-                        return n._nw.Add(i, p);
-                    return n;
-                }
-                if (_nw == null)
-                    if (_items.Count >= CAPACITY && Bounds.Width * Bounds.Height > 1024)
-                    {
-                        int halfWidth = (int)MathF.Ceiling(Bounds.Width / 2f),
-                            halfHeight = (int)MathF.Ceiling(Bounds.Height / 2f);
-                        _nw = Pool<Node>.Spawn();
-                        _nw._tree = _tree;
-                        _nw.Bounds = new Rectangle(Bounds.Left, Bounds.Top, halfWidth, halfHeight);
-                        _nw._parent = this;
-                        _sw = Pool<Node>.Spawn();
-                        _sw._tree = _tree;
-                        int midY = Bounds.Top + halfHeight,
-                            height = Bounds.Bottom - midY;
-                        _sw.Bounds = new Rectangle(Bounds.Left, midY, halfWidth, height);
-                        _sw._parent = this;
-                        _ne = Pool<Node>.Spawn();
-                        _ne._tree = _tree;
-                        int midX = Bounds.Left + halfWidth,
-                            width = Bounds.Right - midX;
-                        _ne.Bounds = new Rectangle(midX, Bounds.Top, width, halfHeight);
-                        _ne._parent = this;
-                        _se = Pool<Node>.Spawn();
-                        _se._tree = _tree;
-                        _se.Bounds = new Rectangle(midX, midY, width, height);
-                        _se._parent = this;
-                        foreach (var i in _items)
-                            _tree._item[i] = (Bury(i, this, _tree._item[i].XY), _tree._item[i].XY);
-                        _items.Clear();
-                    }
-                    else
-                        goto add;
-                return Bury(item, this, pos);
-            add:
-                _items.Add(item);
-                return this;
-            }
-            public void Remove(T item)
-            {
-                _items.Remove(item);
-                if (_parent == null)
-                    return;
-                _tree._nodesToClean.Add(_parent);
-            }
-
             public void OnSpawn() { }
             public void OnFree() => _items.Clear();
 
-            internal void FreeSubNodes()
+            internal void FreeNodes()
             {
                 if (_nw == null)
                     return;
-                _ne.FreeSubNodes();
-                _se.FreeSubNodes();
-                _sw.FreeSubNodes();
-                _nw.FreeSubNodes();
-                Pool<Node>.Free(_ne);
-                Pool<Node>.Free(_se);
-                Pool<Node>.Free(_sw);
-                Pool<Node>.Free(_nw);
+                _tree._nodesToLoop.Push(_ne);
+                _tree._nodesToLoop.Push(_se);
+                _tree._nodesToLoop.Push(_sw);
+                _tree._nodesToLoop.Push(_nw);
                 _ne = null;
                 _se = null;
                 _sw = null;
                 _nw = null;
+                Node node;
+                do
+                {
+                    node = _tree._nodesToLoop.Pop();
+                    Pool<Node>.Free(node);
+                    if (node._nw == null)
+                        continue;
+                    _tree._nodesToLoop.Push(node._ne);
+                    _tree._nodesToLoop.Push(node._se);
+                    _tree._nodesToLoop.Push(node._sw);
+                    _tree._nodesToLoop.Push(node._nw);
+                    node._ne = null;
+                    node._se = null;
+                    node._sw = null;
+                    node._nw = null;
+                }
+                while (_tree._nodesToLoop.Count > 0);
             }
             internal void Clean()
             {
+                if (_nw == null)
+                    return;
                 var count = 0;
                 _tree._nodesToLoop.Push(this);
                 Node node;
@@ -116,12 +73,16 @@ namespace Dcrew.Spatial
                     _tree._nodesToLoop.Push(node._nw);
                 }
                 while (_tree._nodesToLoop.Count > 0);
-                if (_nw == null || count >= CAPACITY)
+                if (count >= CAPACITY)
                     return;
                 _tree._nodesToLoop.Push(_ne);
                 _tree._nodesToLoop.Push(_se);
                 _tree._nodesToLoop.Push(_sw);
                 _tree._nodesToLoop.Push(_nw);
+                _ne = null;
+                _se = null;
+                _sw = null;
+                _nw = null;
                 do
                 {
                     node = _tree._nodesToLoop.Pop();
@@ -130,26 +91,19 @@ namespace Dcrew.Spatial
                         _items.Add(i);
                         _tree._item[i] = (this, _tree._item[i].XY);
                     }
+                    Pool<Node>.Free(node);
                     if (node._nw == null)
                         continue;
                     _tree._nodesToLoop.Push(node._ne);
                     _tree._nodesToLoop.Push(node._se);
                     _tree._nodesToLoop.Push(node._sw);
                     _tree._nodesToLoop.Push(node._nw);
+                    node._ne = null;
+                    node._se = null;
+                    node._sw = null;
+                    node._nw = null;
                 }
                 while (_tree._nodesToLoop.Count > 0);
-                _ne.FreeSubNodes();
-                _se.FreeSubNodes();
-                _sw.FreeSubNodes();
-                _nw.FreeSubNodes();
-                Pool<Node>.Free(_ne);
-                Pool<Node>.Free(_se);
-                Pool<Node>.Free(_sw);
-                Pool<Node>.Free(_nw);
-                _ne = null;
-                _se = null;
-                _sw = null;
-                _nw = null;
             }
         }
 
@@ -226,7 +180,7 @@ namespace Dcrew.Spatial
                     return;
                 }
                 var items = _item.Keys.ToArray();
-                _root.FreeSubNodes();
+                _root.FreeNodes();
                 _root.OnFree();
                 _root.Bounds = value;
                 static int NodeCount(Point b)
@@ -239,8 +193,8 @@ namespace Dcrew.Spatial
                 Pool<Node>.EnsureCount(NodeCount(new Point(value.Width, value.Height)));
                 foreach (var i in items)
                 {
-                    var xy = _item[i].XY;
-                    _item[i] = (_root.Add(i, xy), xy);
+                    var aabb = Util.Rotate(i.AABB, i.Angle, i.Origin);
+                    _item[i] = (Insert(i, _root, aabb), aabb.Center);
                 }
             }
         }
@@ -302,20 +256,26 @@ namespace Dcrew.Spatial
         {
             get
             {
-                static int NodeCount(Node n)
+                var count = 0;
+                _nodesToLoop.Push(_root);
+                Node node;
+                do
                 {
-                    int count = 1;
-                    if (n._nw == null)
-                        return count;
-                    count += NodeCount(n._ne);
-                    count += NodeCount(n._se);
-                    count += NodeCount(n._sw);
-                    count += NodeCount(n._nw);
-                    return count;
+                    node = _nodesToLoop.Pop();
+                    count++;
+                    if (node._nw == null)
+                        continue;
+                    _nodesToLoop.Push(node._ne);
+                    _nodesToLoop.Push(node._se);
+                    _nodesToLoop.Push(node._sw);
+                    _nodesToLoop.Push(node._nw);
                 }
-                return NodeCount(_root);
+                while (_nodesToLoop.Count > 0);
+                return count;
             }
         }
+
+        internal Node _root { get; private set; }
 
         internal readonly Dictionary<T, (Node Node, Point XY)> _item = new Dictionary<T, (Node, Point)>();
         internal readonly CleanNodes _cleanNodes;
@@ -330,7 +290,6 @@ namespace Dcrew.Spatial
             _extendToS = int.MinValue,
             _extendToW = int.MaxValue;
         Updates _updates;
-        Node _root;
 
         delegate void AddItem(T item);
 
@@ -346,7 +305,7 @@ namespace Dcrew.Spatial
         public void Add(T item)
         {
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
-            Insert(item, aabb);
+            _item.Add(item, (Insert(item, _root, aabb), aabb.Center));
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public void Update(T item)
@@ -365,7 +324,8 @@ namespace Dcrew.Spatial
                 _item[item] = (c.Node, xy);
                 return;
             }
-            c.Node.Remove(item);
+            c.Node._items.Remove(item);
+            _nodesToClean.Add(c.Node._parent);
             if (_updates.HasFlag(Updates.ManualMode))
                 _updates |= Updates.ManualCleanNodes;
             else if (!_updates.HasFlag(Updates.AutoCleanNodes))
@@ -373,21 +333,28 @@ namespace Dcrew.Spatial
                 _game.Components.Add(_cleanNodes);
                 _updates |= Updates.AutoCleanNodes;
             }
-            Node GetNewNode(Node n)
+            _nodesToLoop.Push(c.Node);
+            Node node;
+            do
             {
-                if (n._parent == null)
-                    return n;
-                if (n._parent.Bounds.Contains(xy))
-                    return n._parent;
+                node = _nodesToLoop.Pop();
+                if (node._parent == null)
+                    continue;
+                if (node._parent.Bounds.Contains(xy))
+                    node = node._parent;
                 else
-                    return GetNewNode(n._parent);
+                    _nodesToLoop.Push(node._parent);
             }
-            _item[item] = (GetNewNode(c.Node).Add(item, xy), xy);
+            while (_nodesToLoop.Count > 0);
+            _item[item] = (Insert(item, node, aabb), xy);
         }
         /// <summary>Removes <paramref name="item"/> from the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public void Remove(T item)
         {
-            _item[item].Node.Remove(item);
+            var node = _item[item].Node;
+            node._items.Remove(item);
+            if (node._parent != null)
+                _nodesToClean.Add(node._parent);
             if (_updates.HasFlag(Updates.ManualMode))
                 _updates |= Updates.ManualCleanNodes;
             else if (!_updates.HasFlag(Updates.AutoCleanNodes))
@@ -420,7 +387,7 @@ namespace Dcrew.Spatial
         /// <summary>Removes all items and nodes from the tree</summary>
         public void Clear()
         {
-            _root.FreeSubNodes();
+            _root.FreeNodes();
             _root.OnFree();
             _item.Clear();
             _maxWidthItem = (default, 0, 0);
@@ -519,17 +486,100 @@ namespace Dcrew.Spatial
             Bounds = new Rectangle(min.X, min.Y, max.X - min.X + 1, max.Y - min.Y + 1);
         }
 
-        internal void Insert(T item, Rectangle aabb)
+        internal Node Insert(T item, Node node, Rectangle aabb)
         {
             if (_root == null)
+            {
                 Bounds = new Rectangle(aabb.Center, new Point(1));
+                if (node == null)
+                    node = _root;
+            }
             var xy = aabb.Center;
             if (aabb.Width > _maxWidthItem.Size)
                 _maxWidthItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
             if (aabb.Height > _maxHeightItem.Size)
                 _maxHeightItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
-            _item.Add(item, (_root.Add(item, xy), xy));
+            _nodesToLoop.Push(node);
+            do
+            {
+                node = _nodesToLoop.Pop();
+                if (node._nw != null)
+                {
+                    if (node._ne.Bounds.Contains(xy))
+                        _nodesToLoop.Push(node._ne);
+                    else if (node._se.Bounds.Contains(xy))
+                        _nodesToLoop.Push(node._se);
+                    else if (node._sw.Bounds.Contains(xy))
+                        _nodesToLoop.Push(node._sw);
+                    else if (node._nw.Bounds.Contains(xy))
+                        _nodesToLoop.Push(node._nw);
+                }
+                else if (node._items.Count >= Node.CAPACITY && node.Bounds.Width * node.Bounds.Height > 1024)
+                {
+                    int halfWidth = (int)MathF.Ceiling(node.Bounds.Width / 2f),
+                        halfHeight = (int)MathF.Ceiling(node.Bounds.Height / 2f);
+                    node._nw = Pool<Node>.Spawn();
+                    node._nw._tree = this;
+                    node._nw.Bounds = new Rectangle(node.Bounds.Left, node.Bounds.Top, halfWidth, halfHeight);
+                    node._nw._parent = node;
+                    node._sw = Pool<Node>.Spawn();
+                    node._sw._tree = this;
+                    int midY = node.Bounds.Top + halfHeight,
+                        height = node.Bounds.Bottom - midY;
+                    node._sw.Bounds = new Rectangle(node.Bounds.Left, midY, halfWidth, height);
+                    node._sw._parent = node;
+                    node._ne = Pool<Node>.Spawn();
+                    node._ne._tree = this;
+                    int midX = node.Bounds.Left + halfWidth,
+                        width = node.Bounds.Right - midX;
+                    node._ne.Bounds = new Rectangle(midX, node.Bounds.Top, width, halfHeight);
+                    node._ne._parent = node;
+                    node._se = Pool<Node>.Spawn();
+                    node._se._tree = this;
+                    node._se.Bounds = new Rectangle(midX, midY, width, height);
+                    node._se._parent = node;
+                    foreach (var i in node._items)
+                    {
+                        if (node._ne.Bounds.Contains(_item[i].XY))
+                        {
+                            node._ne._items.Add(i);
+                            _item[i] = (node._ne, _item[i].XY);
+                        }
+                        else if (node._se.Bounds.Contains(_item[i].XY))
+                        {
+                            node._se._items.Add(i);
+                            _item[i] = (node._se, _item[i].XY);
+                        }
+                        else if (node._sw.Bounds.Contains(_item[i].XY))
+                        {
+                            node._sw._items.Add(i);
+                            _item[i] = (node._sw, _item[i].XY);
+                        }
+                        else if (node._nw.Bounds.Contains(_item[i].XY))
+                        {
+                            node._nw._items.Add(i);
+                            _item[i] = (node._nw, _item[i].XY);
+                        }
+                    }
+                    node._items.Clear();
+                    if (node._ne.Bounds.Contains(xy))
+                        _nodesToLoop.Push(node._ne);
+                    else if (node._se.Bounds.Contains(xy))
+                        _nodesToLoop.Push(node._se);
+                    else if (node._sw.Bounds.Contains(xy))
+                        _nodesToLoop.Push(node._sw);
+                    else if (node._nw.Bounds.Contains(xy))
+                        _nodesToLoop.Push(node._nw);
+                }
+                else
+                {
+                    node._items.Add(item);
+                    return node;
+                }
+            }
+            while (_nodesToLoop.Count > 0);
             TryExpandTree(xy);
+            return null;
         }
 
         bool TryExpandTree(Point pos)

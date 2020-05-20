@@ -70,7 +70,7 @@ namespace Dcrew.Spatial
             _pastSetup.Add(() =>
             {
                 _tree.Remove(item);
-                _tree.Insert(item, aabb);
+                _tree.Insert(item, _tree._root, aabb);
                 _tree.Bounds = bounds;
             });
             TryCommit();
@@ -97,7 +97,7 @@ namespace Dcrew.Spatial
             _pastSetup.Add(() =>
             {
                 foreach (var (Item, AABB) in items)
-                    _tree.Insert(Item, AABB);
+                    _tree.Insert(Item, _tree._root, AABB);
             });
             TryCommit();
         }
