@@ -238,9 +238,11 @@ namespace Dcrew.Spatial
                 do
                 {
                     node = _nodesToLoop.Pop();
-                    yield return node.Bounds;
                     if (node._nw == null)
+                    {
+                        yield return node.Bounds;
                         continue;
+                    }
                     _nodesToLoop.Push(node._ne);
                     _nodesToLoop.Push(node._se);
                     _nodesToLoop.Push(node._sw);
