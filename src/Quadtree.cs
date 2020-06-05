@@ -213,12 +213,12 @@ namespace Dcrew.Spatial
         {
             get
             {
-                foreach (var i in _item)
-                    yield return i.Key;
+                foreach (var i in _item2)
+                    yield return i;
             }
         }
         /// <summary>Return count of all items</summary>
-        public int ItemCount => _item.Count;
+        public int ItemCount => _item2.Count;
         /// <summary>Return all items and their container rects</summary>
         public IEnumerable<(T Item, Rectangle Node)> Bundles
         {
@@ -278,6 +278,7 @@ namespace Dcrew.Spatial
         internal Node _root { get; private set; }
 
         internal readonly Dictionary<T, (Node Node, Point XY)> _item = new Dictionary<T, (Node, Point)>();
+        internal readonly HashSet<T> _item2 = new HashSet<T>();
         internal readonly CleanNodes _cleanNodes;
         internal readonly ExpandTree _expandTree;
         internal readonly HashSet<Node> _nodesToClean = new HashSet<Node>();
@@ -306,6 +307,7 @@ namespace Dcrew.Spatial
         {
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
             _item.Add(item, (Insert(item, _root, aabb), aabb.Center));
+            _item2.Add(item);
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public void Update(T item)
@@ -363,6 +365,7 @@ namespace Dcrew.Spatial
                 _updates |= Updates.AutoCleanNodes;
             }
             _item.Remove(item);
+            _item2.Remove(item);
             if (ReferenceEquals(item, _maxWidthItem.Item))
             {
                 _maxWidthItem = (default, 0, 0);
