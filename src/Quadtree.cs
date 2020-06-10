@@ -172,11 +172,6 @@ namespace Dcrew.Spatial
             get => _root.Bounds;
             set
             {
-                if (_root == null)
-                {
-                    _root = new Node { Bounds = value, _tree = this };
-                    return;
-                }
                 var items = _item.Keys.ToArray();
                 _root.FreeNodes();
                 _root._items.Clear();
@@ -275,8 +270,7 @@ namespace Dcrew.Spatial
             }
         }
 
-        internal Node _root { get; private set; }
-
+        internal readonly Node _root;
         internal readonly Dictionary<T, (Node Node, Point XY)> _item = new Dictionary<T, (Node, Point)>();
         internal readonly HashSet<T> _item2 = new HashSet<T>();
         internal readonly CleanNodes _cleanNodes;
@@ -298,6 +292,7 @@ namespace Dcrew.Spatial
 
         public Quadtree()
         {
+            _root = new Node() { Tree = this };
             _cleanNodes = new CleanNodes(this);
             _expandTree = new ExpandTree(this);
         }
@@ -306,6 +301,8 @@ namespace Dcrew.Spatial
         public void Add(T item)
         {
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
+            if (_item2.Count == 0 && _root.Bounds == Rectangle.Empty)
+                Bounds = new Rectangle(aabb.Center, new Point(1));
             _item.Add(item, (Insert(item, _root, aabb), aabb.Center));
             _item2.Add(item);
         }
@@ -491,12 +488,6 @@ namespace Dcrew.Spatial
 
         internal Node Insert(T item, Node node, Rectangle aabb)
         {
-            if (_root == null)
-            {
-                Bounds = new Rectangle(aabb.Center, new Point(1));
-                if (node == null)
-                    node = _root;
-            }
             var xy = aabb.Center;
             if (aabb.Width > _maxWidthItem.Size)
                 _maxWidthItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
