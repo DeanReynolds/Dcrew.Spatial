@@ -16,7 +16,6 @@
 
   <ItemGroup>
     <PackageReference Include="Apos.History" Version="0.1.0" />
-    <PackageReference Include="Dcrew.ObjectPool" Version="1.0.1" />
     <PackageReference Include="MonoGame.Framework.DesktopGL.Core" PrivateAssets="All" Version="3.7.0.7" />
   </ItemGroup>
 
