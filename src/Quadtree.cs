@@ -414,8 +414,10 @@ namespace Dcrew.Spatial
             var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
             if (_item2.Count == 0 && _root.Bounds == Rectangle.Empty)
                 Bounds = new Rectangle(aabb.Center, new Point(1));
-            _item.Add(item, (Insert(item, _root, aabb), aabb.Center));
             _item2.Add(item);
+            if (TryExpandTree(aabb.Center))
+                return;
+            _item.Add(item, (Insert(item, _root, aabb), aabb.Center));
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public void Update(T item)
