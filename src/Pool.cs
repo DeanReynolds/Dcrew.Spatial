@@ -16,44 +16,32 @@ namespace Dcrew.Spatial
         {
             if (Count >= size)
                 return;
-            lock (_arr)
-            {
-                SetArrSize(size);
-                var n = size - Count;
-                for (var i = 0; i < n; i++)
-                    _arr[Count++] = new T();
-            }
+            SetArrSize(size);
+            var n = size - Count;
+            for (var i = 0; i < n; i++)
+                _arr[Count++] = new T();
         }
         public static void ExpandSize(int amount)
         {
-            lock (_arr)
-            {
-                SetArrSize(_arr.Length + amount);
-                for (var i = 0; i < amount; i++)
-                    _arr[Count++] = new T();
-            }
+            SetArrSize(_arr.Length + amount);
+            for (var i = 0; i < amount; i++)
+                _arr[Count++] = new T();
         }
 
         public static T Spawn()
         {
             T obj;
-            lock (_arr)
-            {
-                if (Count == 0)
-                    ExpandSize(_defCap); // This method also locks _arr, but the lock is http://en.wikipedia.org/wiki/Reentrant_mutex
-                obj = _arr[--Count];
-                _arr[Count] = default;
-            }
+            if (Count == 0)
+                ExpandSize(_defCap);
+            obj = _arr[--Count];
+            _arr[Count] = default;
             return obj;
         }
         public static void Free(T obj)
         {
-            lock (_arr)
-            {
-                if (Count == _arr.Length)
-                    SetArrSize(_arr.Length + _defCap);
-                _arr[Count++] = obj;
-            }
+            if (Count == _arr.Length)
+                SetArrSize(_arr.Length + _defCap);
+            _arr[Count++] = obj;
         }
 
         static void SetArrSize(int amount)
