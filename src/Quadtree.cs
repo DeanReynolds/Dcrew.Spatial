@@ -21,7 +21,7 @@ namespace Dcrew.Spatial
             internal Rectangle Bounds;
             internal Quadtree<T> Tree;
             internal Node Parent, NE, SE, SW, NW;
-            internal int ItemCount;
+            internal uint ItemCount;
 
             internal IEnumerable<T> Items
             {
@@ -30,13 +30,14 @@ namespace Dcrew.Spatial
                     if (ItemCount > 0)
                     {
                         var nodeItems = _firstItem;
-                        while (nodeItems.Item != null)
+                        do
                         {
                             yield return nodeItems.Item;
                             if (nodeItems.Next == null)
                                 break;
                             nodeItems = nodeItems.Next;
                         }
+                        while (true);
                     }
                     yield break;
                 }
@@ -79,21 +80,11 @@ namespace Dcrew.Spatial
                 }
                 else
                 {
-                    if (nodeItems.Next != null)
-                    {
-                        var next = nodeItems.Next;
-                        nodeItems.Item = null;
-                        nodeItems.Next = null;
-                        Pool<FItem>.Free(nodeItems);
-                        _firstItem = next;
-                    }
-                    else
-                    {
-                        nodeItems.Item = null;
-                        nodeItems.Next = null;
-                        Pool<FItem>.Free(nodeItems);
-                        _firstItem = null;
-                    }
+                    var next = _firstItem.Next;
+                    _firstItem.Item = null;
+                    _firstItem.Next = null;
+                    Pool<FItem>.Free(_firstItem);
+                    _firstItem = next;
                 }
                 ItemCount--;
             }
@@ -153,7 +144,7 @@ namespace Dcrew.Spatial
             }
             internal void Clean()
             {
-                var count = 0;
+                var count = 0U;
                 Tree._toProcess.Push(NE);
                 Tree._toProcess.Push(SE);
                 Tree._toProcess.Push(SW);
@@ -532,13 +523,33 @@ namespace Dcrew.Spatial
             {
                 if (node.NW == null)
                 {
-                    if (area.Contains(node.Bounds))
-                        foreach (T i in node.Items)
-                            yield return i;
-                    else
-                        foreach (T i in node.Items)
-                            if (area.Intersects(i.AABB))
-                                yield return i;
+                    if (node.ItemCount > 0)
+                    {
+                        var nodeItems = node._firstItem;
+                        if (area.Contains(node.Bounds))
+                        {
+                            do
+                            {
+                                yield return nodeItems.Item;
+                                if (nodeItems.Next == null)
+                                    break;
+                                nodeItems = nodeItems.Next;
+                            }
+                            while (true);
+                        }
+                        else
+                        {
+                            do
+                            {
+                                if (area.Intersects(nodeItems.Item.AABB))
+                                    yield return nodeItems.Item;
+                                if (nodeItems.Next == null)
+                                    break;
+                                nodeItems = nodeItems.Next;
+                            }
+                            while (true);
+                        }
+                    }
                 }
                 else
                 {
@@ -710,19 +721,24 @@ namespace Dcrew.Spatial
                     node.SE.Tree = this;
                     node.SE.Bounds = new Rectangle(midX, midY, width, height);
                     node.SE.Parent = node;
-                    foreach (var i in node.Items)
+                    var nodeItems = node._firstItem;
+                    do
                     {
                         var n = node.NW;
-                        var iXY = _item[i].XY;
+                        var iXY = _item[nodeItems.Item].XY;
                         if (node.NE.Bounds.Contains(iXY))
                             n = node.NE;
                         else if (node.SE.Bounds.Contains(iXY))
                             n = node.SE;
                         else if (node.SW.Bounds.Contains(iXY))
                             n = node.SW;
-                        n.Add(i);
-                        _item[i] = (n, iXY);
+                        n.Add(nodeItems.Item);
+                        _item[nodeItems.Item] = (n, iXY);
+                        if (nodeItems.Next == null)
+                            break;
+                        nodeItems = nodeItems.Next;
                     }
+                    while (true);
                     node.Clear();
                     if (node.NE.Bounds.Contains(xy))
                         _toProcess.Push(node.NE);
