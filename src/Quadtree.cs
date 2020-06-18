@@ -1,12 +1,13 @@
 ﻿using Microsoft.Xna.Framework;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 
 namespace Dcrew.Spatial
 {
     /// <summary>For fast and accurate spatial partitioning. Set <see cref="Bounds"/> before use</summary>
-    public sealed class Quadtree<T> where T : class, IAABB
+    public sealed class Quadtree<T> : IEnumerable<T> where T : class, IAABB
     {
         internal sealed class Node
         {
@@ -307,15 +308,8 @@ namespace Dcrew.Spatial
 
         /// <summary>Returns true if <paramref name="item"/> is in the tree</summary>
         public bool Contains(T item) => _item.ContainsKey(item);
-        /// <summary>Return all items</summary>
-        public IEnumerable<T> Items
-        {
-            get
-            {
-                foreach (var i in _item2)
-                    yield return i;
-            }
-        }
+        /// <summary>Returns an enumerator that iterates through the collection</summary>
+        public IEnumerator<T> GetEnumerator() => ((IEnumerable<T>)_item2).GetEnumerator();
         /// <summary>Return count of all items</summary>
         public int ItemCount => _item2.Count;
         /// <summary>Return all items and their container rects</summary>
@@ -376,7 +370,6 @@ namespace Dcrew.Spatial
 
         internal readonly Node _root;
         internal readonly Dictionary<T, (Node Node, Point XY)> _item = new Dictionary<T, (Node, Point)>();
-        internal readonly HashSet<T> _item2 = new HashSet<T>();
         internal readonly CleanNodes _cleanNodes;
         internal readonly ExpandTree _expandTree;
         internal readonly HashSet<Node> _nodesToClean = new HashSet<Node>();
@@ -389,6 +382,8 @@ namespace Dcrew.Spatial
             _extendToS = int.MinValue,
             _extendToW = int.MaxValue;
         Updates _updates;
+
+        readonly HashSet<T> _item2 = new HashSet<T>();
 
         [Flags] enum Updates : byte { ManualMode = 1, AutoCleanNodes = 2, AutoExpandTree = 4, ManualCleanNodes = 8, ManualExpandTree = 16 }
 
@@ -783,5 +778,7 @@ namespace Dcrew.Spatial
             }
             return false;
         }
+
+        IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable<T>)_item2).GetEnumerator();
     }
 }

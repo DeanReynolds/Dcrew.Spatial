@@ -1,11 +1,12 @@
 ﻿using Apos.History;
 using Microsoft.Xna.Framework;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace Dcrew.Spatial
 {
     /// <summary>A <see cref="SpatialHash{T}"/> using <see cref="Apos.History"/> to allow for undoing/redoing</summary>
-    public class HistorySpatialHash<T> : History where T : class, IAABB
+    public class HistorySpatialHash<T> : History, IEnumerable<T> where T : class, IAABB
     {
         /// <summary>Set to your largest item collision radius. Default: 50</summary>
         public int Spacing
@@ -25,8 +26,8 @@ namespace Dcrew.Spatial
 
         /// <summary>Returns true if <paramref name="item"/> is in the tree</summary>
         public bool Contains(T item) => _tree.Contains(item);
-        /// <summary>Return all items</summary>
-        public IEnumerable<T> Items => _tree.Items;
+        /// <summary>Returns an enumerator that iterates through the collection</summary>
+        public IEnumerator<T> GetEnumerator() => _tree.GetEnumerator();
         /// <summary>Return count of all items</summary>
         public int ItemCount => _tree.ItemCount;
         /// <summary>Return all items and their container rects</summary>
@@ -74,7 +75,7 @@ namespace Dcrew.Spatial
             {
                 items = new (T, Point)[_tree.ItemCount];
                 var i = 0;
-                foreach (var item in _tree.Items)
+                foreach (var item in _tree)
                     items[i++] = (item, _tree.Bucket(item));
                 _tree.Clear();
             });
@@ -96,5 +97,7 @@ namespace Dcrew.Spatial
         /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
         /// <param name="origin">Origin (in pixels) of <paramref name="area"/></param>
         public IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin) => _tree.Query(area, angle, origin);
+
+        IEnumerator IEnumerable.GetEnumerator() => _tree.GetEnumerator();
     }
 }

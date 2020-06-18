@@ -1,11 +1,12 @@
 ﻿using Apos.History;
 using Microsoft.Xna.Framework;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace Dcrew.Spatial
 {
     /// <summary>A <see cref="Quadtree{T}"/> using <see cref="Apos.History"/> to allow for undoing/redoing</summary>
-    public class HistoryQuadtree<T> : History where T : class, IAABB
+    public class HistoryQuadtree<T> : History, IEnumerable<T> where T : class, IAABB
     {
         /// <summary>Set the boundary rect of this tree</summary>
         public Rectangle Bounds
@@ -25,8 +26,8 @@ namespace Dcrew.Spatial
 
         /// <summary>Returns true if <paramref name="item"/> is in the tree</summary>
         public bool Contains(T item) => _tree.Contains(item);
-        /// <summary>Return all items</summary>
-        public IEnumerable<T> Items => _tree.Items;
+        /// <summary>Returns an enumerator that iterates through the collection</summary>
+        public IEnumerator<T> GetEnumerator() => _tree.GetEnumerator();
         /// <summary>Return count of all items</summary>
         public int ItemCount => _tree.ItemCount;
         /// <summary>Return all items and their container rects</summary>
@@ -90,7 +91,7 @@ namespace Dcrew.Spatial
             {
                 items = new (T, Rectangle)[_tree.ItemCount];
                 var i = 0;
-                foreach (var item in _tree.Items)
+                foreach (var item in _tree)
                     items[i++] = (item, Util.Rotate(item.AABB, item.Angle, item.Origin));
                 _tree.Clear();
             });
@@ -138,5 +139,7 @@ namespace Dcrew.Spatial
             _pastSetup.Add(() => { _tree.Bounds = bounds; });
             TryCommit();
         }
+
+        IEnumerator IEnumerable.GetEnumerator() => _tree.GetEnumerator();
     }
 }

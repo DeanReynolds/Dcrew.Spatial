@@ -1,11 +1,12 @@
 ﻿using Microsoft.Xna.Framework;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Dcrew.Spatial
 {
     /// <summary>For very fast but approximate spatial partitioning. See <see cref="Spacing"/> before use</summary>
-    public class SpatialHash<T> where T : class, IAABB
+    public class SpatialHash<T> : IEnumerable<T> where T : class, IAABB
     {
         const int DEFAULT_SPACING = 50;
 
@@ -36,15 +37,8 @@ namespace Dcrew.Spatial
 
         /// <summary>Returns true if <paramref name="item"/> is in the tree</summary>
         public bool Contains(T item) => _item.ContainsKey(item);
-        /// <summary>Return all items</summary>
-        public IEnumerable<T> Items
-        {
-            get
-            {
-                foreach (var i in _item)
-                    yield return i.Key;
-            }
-        }
+        /// <summary>Returns an enumerator that iterates through the collection</summary>
+        public IEnumerator<T> GetEnumerator() => ((IEnumerable<T>)_item2).GetEnumerator();
         /// <summary>Return count of all items</summary>
         public int ItemCount => _item.Count;
         /// <summary>Return all items and their container points</summary>
@@ -59,6 +53,7 @@ namespace Dcrew.Spatial
 
         readonly Dictionary<Point, HashSet<T>> _hash = new Dictionary<Point, HashSet<T>>();
         readonly Dictionary<T, Point> _item = new Dictionary<T, Point>();
+        readonly HashSet<T> _item2 = new HashSet<T>();
 
         int _spacing = 0,
             _halfSpacing;
@@ -71,6 +66,7 @@ namespace Dcrew.Spatial
             var bucket = Bucket(item);
             Add(item, bucket);
             _item.Add(item, bucket);
+            _item2.Add(item);
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         /// <returns>True if <paramref name="item"/> was moved to a new bucket, false otherwise</returns>
@@ -107,6 +103,7 @@ namespace Dcrew.Spatial
             else
                 t.Remove(item);
             _item.Remove(item);
+            _item2.Remove(item);
         }
         /// <summary>Removes all items and buckets from the tree</summary>
         public void Clear()
@@ -220,5 +217,7 @@ namespace Dcrew.Spatial
                 foreach (var i in _hash[bucket])
                     yield return i;
         }
+
+        IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable<T>)_item2).GetEnumerator();
     }
 }
