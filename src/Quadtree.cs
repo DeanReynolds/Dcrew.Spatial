@@ -536,7 +536,8 @@ namespace Dcrew.Spatial
                         {
                             do
                             {
-                                if (area.Intersects(nodeItems.Item.AABB))
+                                var aabb = Util.Rotate(nodeItems.Item.AABB, nodeItems.Item.Angle, nodeItems.Item.Origin);
+                                if (area.Intersects(aabb))
                                     yield return nodeItems.Item;
                                 if (nodeItems.Next == null)
                                     break;
