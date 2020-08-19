@@ -512,6 +512,223 @@ namespace Dcrew.Spatial
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
         public IEnumerable<T> Query(Rectangle area)
         {
+            var node = _root;
+            var broad = new Rectangle(area.X - _maxWidthItem.HalfSize, area.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size + area.Width, _maxHeightItem.Size + area.Height);
+            var rect = new RotRect(area, 0, Vector2.Zero);
+            do
+            {
+                if (node.NW == null)
+                {
+                    if (node.ItemCount > 0)
+                    {
+                        var nodeItems = node._firstItem;
+                        if (area.Contains(node.Bounds))
+                        {
+                            do
+                            {
+                                if (rect.Intersects(new RotRect(nodeItems.Item.AABB, nodeItems.Item.Angle, nodeItems.Item.Origin)))
+                                    yield return nodeItems.Item;
+                                if (nodeItems.Next == null)
+                                    break;
+                                nodeItems = nodeItems.Next;
+                            }
+                            while (true);
+                        }
+                        else
+                        {
+                            do
+                            {
+                                if (rect.Intersects(new RotRect(nodeItems.Item.AABB, nodeItems.Item.Angle, nodeItems.Item.Origin)))
+                                    yield return nodeItems.Item;
+                                if (nodeItems.Next == null)
+                                    break;
+                                nodeItems = nodeItems.Next;
+                            }
+                            while (true);
+                        }
+                    }
+                }
+                else
+                {
+                    var nodeCenter = node.Bounds.Center;
+                    int broadBottom = broad.Bottom,
+                        broadRight = broad.Right;
+                    if (broadRight > nodeCenter.X)
+                    {
+                        if (broad.Left < nodeCenter.X)
+                        {
+                            if (broadBottom > nodeCenter.Y)
+                            {
+                                if (broad.Top < nodeCenter.Y)
+                                {
+                                    _toProcess.Push(node.NE);
+                                    _toProcess.Push(node.SE);
+                                    _toProcess.Push(node.SW);
+                                    _toProcess.Push(node.NW);
+                                }
+                                else if (broad.Top < node.Bounds.Bottom)
+                                {
+                                    _toProcess.Push(node.SE);
+                                    _toProcess.Push(node.SW);
+                                }
+                            }
+                            else if (broadBottom > node.Bounds.Top)
+                            {
+                                _toProcess.Push(node.NE);
+                                _toProcess.Push(node.NW);
+                            }
+                        }
+                        else if (broad.Left < node.Bounds.Right)
+                        {
+                            if (broadBottom > nodeCenter.Y)
+                            {
+                                if (broad.Top < nodeCenter.Y)
+                                {
+                                    _toProcess.Push(node.NE);
+                                    _toProcess.Push(node.SE);
+                                }
+                                else if (broad.Top < node.Bounds.Bottom)
+                                    _toProcess.Push(node.SE);
+                            }
+                            else if (broadBottom > node.Bounds.Top)
+                                _toProcess.Push(node.NE);
+                        }
+                    }
+                    else if (broadRight > node.Bounds.Left)
+                    {
+                        if (broadBottom > nodeCenter.Y)
+                        {
+                            if (broad.Top < nodeCenter.Y)
+                            {
+                                _toProcess.Push(node.NW);
+                                _toProcess.Push(node.SW);
+                            }
+                            else if (broad.Top < node.Bounds.Bottom)
+                                _toProcess.Push(node.SW);
+                        }
+                        else if (broadBottom > node.Bounds.Top)
+                            _toProcess.Push(node.NW);
+                    }
+                }
+                if (_toProcess.Count == 0)
+                    break;
+                node = _toProcess.Pop();
+            }
+            while (true);
+            yield break;
+        }
+        /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
+        /// <param name="area">Area (rectangle)</param>
+        /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
+        /// <param name="origin">Origin (in pixels) of <paramref name="area"/></param>
+        public IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin)
+        {
+            var node = _root;
+            var broad = Util.Rotate(new Rectangle(area.X - _maxWidthItem.HalfSize, area.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size + area.Width, _maxHeightItem.Size + area.Height), angle, origin);
+            var rect = new RotRect(area, angle, origin);
+            do
+            {
+                if (node.NW == null)
+                {
+                    if (node.ItemCount > 0)
+                    {
+                        var nodeItems = node._firstItem;
+                        if (rect.Intersects(node.Bounds))
+                        {
+                            do
+                            {
+                                if (rect.Intersects(new RotRect(nodeItems.Item.AABB, nodeItems.Item.Angle, nodeItems.Item.Origin)))
+                                    yield return nodeItems.Item;
+                                if (nodeItems.Next == null)
+                                    break;
+                                nodeItems = nodeItems.Next;
+                            }
+                            while (true);
+                        }
+                        else
+                        {
+                            do
+                            {
+                                if (rect.Intersects(new RotRect(nodeItems.Item.AABB, nodeItems.Item.Angle, nodeItems.Item.Origin)))
+                                    yield return nodeItems.Item;
+                                if (nodeItems.Next == null)
+                                    break;
+                                nodeItems = nodeItems.Next;
+                            }
+                            while (true);
+                        }
+                    }
+                }
+                else
+                {
+                    var nodeCenter = node.Bounds.Center;
+                    int broadBottom = broad.Bottom,
+                        broadRight = broad.Right;
+                    if (broadRight > nodeCenter.X)
+                    {
+                        if (broad.Left < nodeCenter.X)
+                        {
+                            if (broadBottom > nodeCenter.Y)
+                            {
+                                if (broad.Top < nodeCenter.Y)
+                                {
+                                    _toProcess.Push(node.NE);
+                                    _toProcess.Push(node.SE);
+                                    _toProcess.Push(node.SW);
+                                    _toProcess.Push(node.NW);
+                                }
+                                else if (broad.Top < node.Bounds.Bottom)
+                                {
+                                    _toProcess.Push(node.SE);
+                                    _toProcess.Push(node.SW);
+                                }
+                            }
+                            else if (broadBottom > node.Bounds.Top)
+                            {
+                                _toProcess.Push(node.NE);
+                                _toProcess.Push(node.NW);
+                            }
+                        }
+                        else if (broad.Left < node.Bounds.Right)
+                        {
+                            if (broadBottom > nodeCenter.Y)
+                            {
+                                if (broad.Top < nodeCenter.Y)
+                                {
+                                    _toProcess.Push(node.NE);
+                                    _toProcess.Push(node.SE);
+                                }
+                                else if (broad.Top < node.Bounds.Bottom)
+                                    _toProcess.Push(node.SE);
+                            }
+                            else if (broadBottom > node.Bounds.Top)
+                                _toProcess.Push(node.NE);
+                        }
+                    }
+                    else if (broadRight > node.Bounds.Left)
+                    {
+                        if (broadBottom > nodeCenter.Y)
+                        {
+                            if (broad.Top < nodeCenter.Y)
+                            {
+                                _toProcess.Push(node.NW);
+                                _toProcess.Push(node.SW);
+                            }
+                            else if (broad.Top < node.Bounds.Bottom)
+                                _toProcess.Push(node.SW);
+                        }
+                        else if (broadBottom > node.Bounds.Top)
+                            _toProcess.Push(node.NW);
+                    }
+                }
+                if (_toProcess.Count == 0)
+                    break;
+                node = _toProcess.Pop();
+            }
+            while (true);
+            yield break;
+        }
+        {
             Node node = _root;
             var broad = new Rectangle(area.X - _maxWidthItem.HalfSize, area.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size + area.Width, _maxHeightItem.Size + area.Height);
             do
