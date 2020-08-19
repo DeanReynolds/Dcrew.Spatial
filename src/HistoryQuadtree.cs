@@ -113,6 +113,17 @@ namespace Dcrew.Spatial
         /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
         /// <param name="origin">Origin (in pixels) of <paramref name="area"/></param>
         public IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin) => _tree.Query(area, angle, origin);
+        /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
+        public IEnumerable<T> FastQuery(Point xy) => _tree.FastQuery(xy);
+        /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
+        public IEnumerable<T> FastQuery(Vector2 xy) => _tree.FastQuery(xy);
+        /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
+        public IEnumerable<T> FastQuery(Rectangle area) => _tree.FastQuery(area);
+        /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
+        /// <param name="area">Area (rectangle)</param>
+        /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
+        /// <param name="origin">Origin (in pixels) of <paramref name="area"/></param>
+        public IEnumerable<T> FastQuery(Rectangle area, float angle, Vector2 origin) => _tree.FastQuery(area, angle, origin);
 
         /// <summary>You need to call this if you don't use base.Update() in <see cref="Game.Update(GameTime)"/></summary>
         public void Update()
