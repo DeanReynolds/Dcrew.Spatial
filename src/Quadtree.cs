@@ -184,7 +184,7 @@ namespace Dcrew.Spatial
                     foreach (var i in node.Items)
                     {
                         Add(i);
-                        Tree._item[i] = (this, Tree._item[i].XY);
+                        Tree._item[i] = (this, Tree._item[i].XY, Tree._item[i].AABB);
                     }
                     node.Clear();
                     Pool<Node>.Free(node);
@@ -291,7 +291,7 @@ namespace Dcrew.Spatial
                 foreach (var i in _item2)
                 {
                     var aabb = Util.Rotate(i.AABB, i.Angle, i.Origin);
-                    _item[i] = (Insert(i, _root, aabb), aabb.Center);
+                    _item[i] = (Insert(i, _root, aabb), aabb.Center, aabb);
                 }
                 _nodesToClean.Clear();
             }
@@ -313,12 +313,12 @@ namespace Dcrew.Spatial
         /// <summary>Return count of all items</summary>
         public int ItemCount => _item2.Count;
         /// <summary>Return all items and their container rects</summary>
-        public IEnumerable<(T Item, Rectangle Node)> Bundles
+        public IEnumerable<(T Item, Rectangle Node, Rectangle ActualAABB)> Bundles
         {
             get
             {
                 foreach (var i in _item)
-                    yield return (i.Key, i.Value.Node.Bounds);
+                    yield return (i.Key, i.Value.Node.Bounds, i.Value.AABB);
             }
         }
         /// <summary>Return all node bounds in this tree</summary>
@@ -369,10 +369,8 @@ namespace Dcrew.Spatial
         }
 
         internal readonly Node _root;
-        internal readonly Dictionary<T, (Node Node, Point XY)> _item = new Dictionary<T, (Node, Point)>();
-        internal readonly CleanNodes _cleanNodes;
-        internal readonly ExpandTree _expandTree;
-        internal readonly HashSet<Node> _nodesToClean = new HashSet<Node>();
+        internal readonly Dictionary<T, (Node Node, Point XY, Rectangle AABB)> _item = new Dictionary<T, (Node, Point, Rectangle)>();
+        internal readonly HashSet<T> _item2 = new HashSet<T>();
         internal readonly Stack<Node> _toProcess = new Stack<Node>();
 
         (T Item, int Size, int HalfSize) _maxWidthItem,
@@ -383,7 +381,9 @@ namespace Dcrew.Spatial
             _extendToW = int.MaxValue;
         Updates _updates;
 
-        readonly HashSet<T> _item2 = new HashSet<T>();
+        readonly HashSet<Node> _nodesToClean = new HashSet<Node>();
+        readonly CleanNodes _cleanNodes;
+        readonly ExpandTree _expandTree;
 
         [Flags] enum Updates : byte { ManualMode = 1, AutoCleanNodes = 2, AutoExpandTree = 4, ManualCleanNodes = 8, ManualExpandTree = 16 }
 
@@ -403,7 +403,7 @@ namespace Dcrew.Spatial
             _item2.Add(item);
             if (TryExpandTree(aabb.Center))
                 return;
-            _item.Add(item, (Insert(item, _root, aabb), aabb.Center));
+            _item.Add(item, (Insert(item, _root, aabb), aabb.Center, aabb));
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public void Update(T item)
@@ -419,7 +419,7 @@ namespace Dcrew.Spatial
             var c = _item[item];
             if (c.Node.Bounds.Contains(xy) || c.Node.Parent == null)
             {
-                _item[item] = (c.Node, xy);
+                _item[item] = (c.Node, xy, aabb);
                 return;
             }
             c.Node.Remove(item);
@@ -444,7 +444,7 @@ namespace Dcrew.Spatial
                 node = node.Parent;
             }
             while (true);
-            _item[item] = (Insert(item, node, aabb), xy);
+            _item[item] = (Insert(item, node, aabb), xy, aabb);
         }
         /// <summary>Removes <paramref name="item"/> from the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public void Remove(T item)
@@ -467,7 +467,7 @@ namespace Dcrew.Spatial
                 _maxWidthItem = (default, 0, 0);
                 foreach (T i in _item.Keys)
                 {
-                    var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
+                    var aabb = Util.Rotate(i.AABB, i.Angle, i.Origin);
                     if (aabb.Width > _maxWidthItem.Size)
                         _maxWidthItem = (i, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
                 }
@@ -477,7 +477,7 @@ namespace Dcrew.Spatial
                 _maxHeightItem = (default, 0, 0);
                 foreach (T i in _item.Keys)
                 {
-                    var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
+                    var aabb = Util.Rotate(i.AABB, i.Angle, i.Origin);
                     if (i.AABB.Height > _maxHeightItem.Size)
                         _maxHeightItem = (i, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
                 }
@@ -954,15 +954,15 @@ namespace Dcrew.Spatial
                     do
                     {
                         var n = node.NW;
-                        var iXY = _item[nodeItems.Item].XY;
-                        if (node.NE.Bounds.Contains(iXY))
+                        var ii = _item[nodeItems.Item];
+                        if (node.NE.Bounds.Contains(ii.XY))
                             n = node.NE;
-                        else if (node.SE.Bounds.Contains(iXY))
+                        else if (node.SE.Bounds.Contains(ii.XY))
                             n = node.SE;
-                        else if (node.SW.Bounds.Contains(iXY))
+                        else if (node.SW.Bounds.Contains(ii.XY))
                             n = node.SW;
                         n.Add(nodeItems.Item);
-                        _item[nodeItems.Item] = (n, iXY);
+                        _item[nodeItems.Item] = (n, ii.XY, ii.AABB);
                         if (nodeItems.Next == null)
                             break;
                         nodeItems = nodeItems.Next;

@@ -31,7 +31,7 @@ namespace Dcrew.Spatial
         /// <summary>Return count of all items</summary>
         public int ItemCount => _tree.ItemCount;
         /// <summary>Return all items and their container rects</summary>
-        public IEnumerable<(T Item, Rectangle Node)> Bundles => _tree.Bundles;
+        public IEnumerable<(T Item, Rectangle Node, Rectangle ActualAABB)> Bundles => _tree.Bundles;
         /// <summary>Return all node bounds in this tree</summary>
         public IEnumerable<Rectangle> Nodes => _tree.Nodes;
         /// <summary>Return count of all nodes</summary>
@@ -60,18 +60,18 @@ namespace Dcrew.Spatial
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public void Update(T item)
         {
-            var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
+            var ii = _tree._item[item];
             var bounds = _tree.Bounds;
             _futureSetup.Add(() =>
             {
-                aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
+                ii = _tree._item[item];
                 bounds = _tree.Bounds;
                 _tree.Update(item);
             });
             _pastSetup.Add(() =>
             {
-                _tree.Remove(item);
-                _tree.Insert(item, _tree._root, aabb);
+                _tree._item[item].Node.Remove(item);
+                _tree._item[item] = (_tree.Insert(item, ii.Node, ii.AABB), ii.XY, ii.AABB);
                 _tree.Bounds = bounds;
             });
             TryCommit();
@@ -81,6 +81,17 @@ namespace Dcrew.Spatial
         {
             _futureSetup.Add(() => { _tree.Remove(item); });
             _pastSetup.Add(() => { _tree.Add(item); });
+            var ii = _tree._item[item];
+            _futureSetup.Add(() =>
+            {
+                ii = _tree._item[item];
+                _tree.Remove(item);
+            });
+            _pastSetup.Add(() =>
+            {
+                _tree._item2.Add(item);
+                _tree._item.Add(item, (_tree.Insert(item, ii.Node, ii.AABB), ii.XY, ii.AABB));
+            });
             TryCommit();
         }
         /// <summary>Removes all items and nodes from the tree</summary>
