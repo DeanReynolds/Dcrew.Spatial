@@ -728,6 +728,22 @@ namespace Dcrew.Spatial
             while (true);
             yield break;
         }
+        /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
+        public IEnumerable<T> FastQuery(Point xy)
+        {
+            foreach (var t in FastQuery(new Rectangle(xy.X, xy.Y, 1, 1)))
+                yield return t;
+            yield break;
+        }
+        /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
+        public IEnumerable<T> FastQuery(Vector2 xy)
+        {
+            foreach (var t in FastQuery(new Rectangle((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y), 1, 1)))
+                yield return t;
+            yield break;
+        }
+        /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
+        public IEnumerable<T> FastQuery(Rectangle area)
         {
             Node node = _root;
             var broad = new Rectangle(area.X - _maxWidthItem.HalfSize, area.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size + area.Width, _maxHeightItem.Size + area.Height);
@@ -837,10 +853,10 @@ namespace Dcrew.Spatial
         /// <param name="area">Area (rectangle)</param>
         /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
         /// <param name="origin">Origin (in pixels) of <paramref name="area"/></param>
-        public IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin)
+        public IEnumerable<T> FastQuery(Rectangle area, float angle, Vector2 origin)
         {
             area = Util.Rotate(area, angle, origin);
-            foreach (var t in Query(area))
+            foreach (var t in FastQuery(area))
                 yield return t;
             yield break;
         }
