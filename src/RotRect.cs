@@ -12,40 +12,13 @@ namespace Dcrew.Spatial
         {
             get
             {
-                Vector2 topLeft = new Vector2(Rect.Left, Rect.Top);
+                var topLeft = new Vector2(Rect.Left, Rect.Top);
                 return RotatePoint(topLeft, topLeft + Origin, Angle);
             }
         }
-
-        public Vector2 TopRight
-        {
-            get
-            {
-                Vector2 topLeft = new Vector2(Rect.Left, Rect.Top);
-                Vector2 topRight = new Vector2(Rect.Right, Rect.Top);
-                return RotatePoint(topRight, topLeft + Origin, Angle);
-            }
-        }
-
-        public Vector2 BottomLeft
-        {
-            get
-            {
-                Vector2 topLeft = new Vector2(Rect.Left, Rect.Top);
-                Vector2 bottomLeft = new Vector2(Rect.Left, Rect.Bottom);
-                return RotatePoint(bottomLeft, topLeft + Origin, Angle);
-            }
-        }
-
-        public Vector2 BottomRight
-        {
-            get
-            {
-                Vector2 topLeft = new Vector2(Rect.Left, Rect.Top);
-                Vector2 bottomRight = new Vector2(Rect.Right, Rect.Bottom);
-                return RotatePoint(bottomRight, topLeft + Origin, Angle);
-            }
-        }
+        public Vector2 TopRight => RotatePoint(new Vector2(Rect.Right, Rect.Top), new Vector2(Rect.Left, Rect.Top) + Origin, Angle);
+        public Vector2 BottomLeft => RotatePoint(new Vector2(Rect.Left, Rect.Bottom), new Vector2(Rect.Left, Rect.Top) + Origin, Angle);
+        public Vector2 BottomRight => RotatePoint(new Vector2(Rect.Right, Rect.Bottom), new Vector2(Rect.Left, Rect.Top) + Origin, Angle);
 
         public RotRect(Rectangle rect, float angle, Vector2 origin)
         {
