@@ -102,7 +102,7 @@ namespace Dcrew.Spatial
                 else
                     closest = b;
             }
-            else if (closest == bl)
+            else
             {
                 Vector2 a = new Line(bl, tl).ClosestPoint(center),
                     b = new Line(bl, br).ClosestPoint(center);
