@@ -624,14 +624,16 @@ namespace Dcrew.Spatial
         public IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin)
         {
             var node = _root;
-            var broad = Util.Rotate(new Rectangle(area.X - _maxWidthItem.HalfSize, area.Y - _maxHeightItem.HalfSize, _maxWidthItem.Size + area.Width, _maxHeightItem.Size + area.Height), angle, origin);
+            var broad = Util.Rotate(area, angle, origin);
+            broad.Inflate(_maxWidthItem.HalfSize, _maxHeightItem.HalfSize);
             var rect = new RotRect(area, angle, origin);
-            var rotMat = Matrix.CreateRotationZ(-angle);
+            float cos = MathF.Cos(-angle),
+                sin = MathF.Sin(-angle);
             bool PointIsInArea(Vector2 p)
             {
-                var rotP = Vector2.Transform(p - area.Location.ToVector2(), rotMat);
-                rotP += area.Location.ToVector2();
-                return area.Contains(rotP);
+                float cx = p.X - area.X,
+                    cy = p.Y - area.Y;
+                return area.Contains(new Vector2(cx * cos + cy * -sin + area.X, cx * sin + cy * cos + area.Y));
             }
             do
             {
@@ -662,7 +664,7 @@ namespace Dcrew.Spatial
                                 do
                                 {
                                     var aabb = new RotRect(nodeItems.Item.AABB, nodeItems.Item.Angle, nodeItems.Item.Origin);
-                                    if (PointIsInArea(aabb.TopLeft) || PointIsInArea(aabb.TopRight) || PointIsInArea(aabb.BottomLeft) || PointIsInArea(aabb.BottomRight) || rect.Intersects(aabb))
+                                    if (rect.Intersects(aabb))
                                         yield return nodeItems.Item;
                                     if (nodeItems.Next == null)
                                         break;
@@ -676,7 +678,7 @@ namespace Dcrew.Spatial
                             do
                             {
                                 var aabb = new RotRect(nodeItems.Item.AABB, nodeItems.Item.Angle, nodeItems.Item.Origin);
-                                if (PointIsInArea(aabb.TopLeft) || PointIsInArea(aabb.TopRight) || PointIsInArea(aabb.BottomLeft) || PointIsInArea(aabb.BottomRight) || rect.Intersects(aabb))
+                                if (rect.Intersects(aabb))
                                     yield return nodeItems.Item;
                                 if (nodeItems.Next == null)
                                     break;
