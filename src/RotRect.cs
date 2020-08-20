@@ -1,24 +1,31 @@
 ﻿using Microsoft.Xna.Framework;
+using System;
 
 namespace Dcrew.Spatial
 {
     struct RotRect
     {
+        struct Line
+        {
+            public Vector2 A, B;
+
+            public Line(Vector2 a, Vector2 b)
+            {
+                A = a;
+                B = b;
+            }
+
+            public Vector2 ClosestPoint(Vector2 p)
+            {
+                var ab = B - A;
+                var distance = Vector2.Dot(p - A, ab) / ab.LengthSquared();
+                return distance < 0 ? A : distance > 1 ? B : A + ab * distance;
+            }
+        }
+
         public Rectangle Rect;
         public float Angle;
         public Vector2 Origin;
-
-        public Vector2 TopLeft
-        {
-            get
-            {
-                var topLeft = new Vector2(Rect.Left, Rect.Top);
-                return RotatePoint(topLeft, topLeft + Origin, Angle);
-            }
-        }
-        public Vector2 TopRight => RotatePoint(new Vector2(Rect.Right, Rect.Top), new Vector2(Rect.Left, Rect.Top) + Origin, Angle);
-        public Vector2 BottomLeft => RotatePoint(new Vector2(Rect.Left, Rect.Bottom), new Vector2(Rect.Left, Rect.Top) + Origin, Angle);
-        public Vector2 BottomRight => RotatePoint(new Vector2(Rect.Right, Rect.Bottom), new Vector2(Rect.Left, Rect.Top) + Origin, Angle);
 
         public RotRect(Rectangle rect, float angle, Vector2 origin)
         {
@@ -28,61 +35,89 @@ namespace Dcrew.Spatial
         }
 
         public bool Intersects(Rectangle rectangle) => Intersects(new RotRect(rectangle, 0, Vector2.Zero));
-        public bool Intersects(RotRect rectangle)
-        {
-            Vector2 axisTop = TopRight - TopLeft,
-                axisRight = TopRight - BottomRight,
-                axisOTop = rectangle.TopRight - rectangle.TopLeft,
-                axisORight = rectangle.TopRight - rectangle.BottomRight;
-            if (!IsAxisColliding(rectangle, axisTop) ||
-                !IsAxisColliding(rectangle, axisRight) ||
-                !rectangle.IsAxisColliding(this, axisOTop) ||
-                !rectangle.IsAxisColliding(this, axisORight))
-                return false;
-            else return true;
-        }
+        public bool Intersects(RotRect rectangle) => IntersectsAnyEdge(rectangle) || rectangle.IntersectsAnyEdge(this);
 
-        bool IsAxisColliding(RotRect rect, Vector2 axis)
+        bool IntersectsAnyEdge(RotRect rectangle)
         {
-            float s1 = Vector2.Dot(TopLeft, axis),
-                s2 = Vector2.Dot(TopRight, axis),
-                s3 = Vector2.Dot(BottomLeft, axis),
-                s4 = Vector2.Dot(BottomRight, axis),
-                min = s1,
-                max = s1;
-            if (s2 < min)
-                min = s2;
-            if (s3 < min)
-                min = s3;
-            if (s4 < min)
-                min = s4;
-            if (s2 > max)
-                max = s2;
-            if (s3 > max)
-                max = s3;
-            if (s4 > max)
-                max = s4;
-            float os1 = Vector2.Dot(rect.TopLeft, axis),
-                os2 = Vector2.Dot(rect.TopRight, axis),
-                os3 = Vector2.Dot(rect.BottomLeft, axis),
-                os4 = Vector2.Dot(rect.BottomRight, axis),
-                omin = os1,
-                omax = os1;
-            if (os2 < omin)
-                omin = os2;
-            if (os3 < omin)
-                omin = os3;
-            if (os4 < omin)
-                omin = os4;
-            if (os2 > omax)
-                omax = os2;
-            if (os3 > omax)
-                omax = os3;
-            if (os4 > omax)
-                omax = os4;
-            return max >= omax && min <= omax || omax >= max && omin <= max;
+            Vector2 center = Util.Rotate(Rect, Angle, Origin).Center.ToVector2(),
+                closest,
+                tl,
+                tr,
+                br,
+                bl;
+            float cos = MathF.Cos(rectangle.Angle),
+                sin = MathF.Sin(rectangle.Angle),
+                x = -rectangle.Origin.X,
+                y = -rectangle.Origin.Y,
+                w = rectangle.Rect.Width + x,
+                h = rectangle.Rect.Height + y,
+                xcos = x * cos,
+                ycos = y * cos,
+                xsin = x * sin,
+                ysin = y * sin,
+                wcos = w * cos,
+                wsin = w * sin,
+                hcos = h * cos,
+                hsin = h * sin,
+                tlx = xcos - ysin + rectangle.Rect.X + rectangle.Origin.X,
+                tly = xsin + ycos + rectangle.Rect.Y + rectangle.Origin.Y,
+                trx = wcos - ysin + rectangle.Rect.X + rectangle.Origin.X,
+                tr_y = wsin + ycos + rectangle.Rect.Y + rectangle.Origin.Y,
+                brx = wcos - hsin + rectangle.Rect.X + rectangle.Origin.X,
+                bry = wsin + hcos + rectangle.Rect.Y + rectangle.Origin.Y,
+                blx = xcos - hsin + rectangle.Rect.X + rectangle.Origin.X,
+                bly = xsin + hcos + rectangle.Rect.Y + rectangle.Origin.Y;
+            if (Vector2.DistanceSquared(tl = new Vector2(tlx, tly), center) < Vector2.DistanceSquared(tr = new Vector2(trx, tr_y), center))
+                closest = tl;
+            else
+                closest = tr;
+            if (Vector2.DistanceSquared(br = new Vector2(brx, bry), center) < Vector2.DistanceSquared(closest, center))
+                closest = br;
+            if (Vector2.DistanceSquared(bl = new Vector2(blx, bly), center) < Vector2.DistanceSquared(closest, center))
+                closest = bl;
+            if (closest == tl)
+            {
+                Vector2 a = new Line(tl, bl).ClosestPoint(center),
+                    b = new Line(tl, tr).ClosestPoint(center);
+                if (Vector2.DistanceSquared(a, center) < Vector2.DistanceSquared(b, center))
+                    closest = a;
+                else
+                    closest = b;
+            }
+            else if (closest == tr)
+            {
+                Vector2 a = new Line(tr, tl).ClosestPoint(center),
+                    b = new Line(tr, br).ClosestPoint(center);
+                if (Vector2.DistanceSquared(a, center) < Vector2.DistanceSquared(b, center))
+                    closest = a;
+                else
+                    closest = b;
+            }
+            else if (closest == br)
+            {
+                Vector2 a = new Line(br, tr).ClosestPoint(center),
+                    b = new Line(br, bl).ClosestPoint(center);
+                if (Vector2.DistanceSquared(a, center) < Vector2.DistanceSquared(b, center))
+                    closest = a;
+                else
+                    closest = b;
+            }
+            else if (closest == bl)
+            {
+                Vector2 a = new Line(bl, tl).ClosestPoint(center),
+                    b = new Line(bl, br).ClosestPoint(center);
+                if (Vector2.DistanceSquared(a, center) < Vector2.DistanceSquared(b, center))
+                    closest = a;
+                else
+                    closest = b;
+            }
+            var rect = Rect;
+            rect.Offset(-Origin);
+            cos = MathF.Cos(-Angle);
+            sin = MathF.Sin(-Angle);
+            float cx = closest.X - Rect.X,
+                cy = closest.Y - Rect.Y;
+            return rect.Contains(new Vector2(cx * cos + cy * -sin + Rect.X, cx * sin + cy * cos + Rect.Y));
         }
-
-        Vector2 RotatePoint(Vector2 point, Vector2 origin, float rotation) => Vector2.Transform(point - origin, Matrix.CreateRotationZ(rotation)) + origin;
     }
 }
