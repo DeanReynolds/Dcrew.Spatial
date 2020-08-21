@@ -521,14 +521,6 @@ namespace Dcrew.Spatial
             var broad = Util.Rotate(area, angle, origin);
             broad.Inflate(_maxWidthItem.HalfSize, _maxHeightItem.HalfSize);
             var rect = new RotRect(area, angle, origin);
-            float cos = MathF.Cos(-angle),
-                sin = MathF.Sin(-angle);
-            bool PointIsInArea(Vector2 p)
-            {
-                float cx = p.X - area.X,
-                    cy = p.Y - area.Y;
-                return area.Contains(new Vector2(cx * cos + cy * -sin + area.X, cx * sin + cy * cos + area.Y));
-            }
             do
             {
                 if (node.NW == null)
@@ -536,36 +528,16 @@ namespace Dcrew.Spatial
                     if (node.ItemCount > 0)
                     {
                         var nodeItems = node._firstItem;
-                        bool nNW = PointIsInArea(new Vector2(node.Bounds.Left, node.Bounds.Top)),
-                            nNE = PointIsInArea(new Vector2(node.Bounds.Right, node.Bounds.Top)),
-                            nSE = PointIsInArea(new Vector2(node.Bounds.Right, node.Bounds.Bottom)),
-                            nSW = PointIsInArea(new Vector2(node.Bounds.Left, node.Bounds.Bottom));
-                        if (nNE || nSE || nSW || nNW)
+                        if (rect.Contains(node.Bounds))
                         {
-                            if (nNE && nSE && nSW && nNW)
+                            do
                             {
-                                do
-                                {
-                                    yield return nodeItems.Item;
-                                    if (nodeItems.Next == null)
-                                        break;
-                                    nodeItems = nodeItems.Next;
-                                }
-                                while (true);
+                                yield return nodeItems.Item;
+                                if (nodeItems.Next == null)
+                                    break;
+                                nodeItems = nodeItems.Next;
                             }
-                            else if (rect.Intersects(node.Bounds))
-                            {
-                                do
-                                {
-                                    var aabb = new RotRect(nodeItems.Item.AABB, nodeItems.Item.Angle, nodeItems.Item.Origin);
-                                    if (rect.Intersects(aabb))
-                                        yield return nodeItems.Item;
-                                    if (nodeItems.Next == null)
-                                        break;
-                                    nodeItems = nodeItems.Next;
-                                }
-                                while (true);
-                            }
+                            while (true);
                         }
                         else
                         {
