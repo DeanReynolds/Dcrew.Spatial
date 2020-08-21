@@ -62,7 +62,7 @@ namespace Dcrew.Spatial
             if (bly > maxy)
                 maxy = bly;
             var r = new Rectangle((int)minx, (int)miny, (int)MathF.Ceiling(maxx - minx), (int)MathF.Ceiling(maxy - miny));
-            r.Offset(area.X + origin.X, area.Y + origin.Y);
+            r.Offset(area.X, area.Y);
             return r;
         }
     }
