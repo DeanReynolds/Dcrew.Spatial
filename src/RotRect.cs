@@ -59,14 +59,14 @@ namespace Dcrew.Spatial
                 wsin = w * sin,
                 hcos = h * cos,
                 hsin = h * sin,
-                tlx = xcos - ysin + rectangle.Rect.X + rectangle.Origin.X,
-                tly = xsin + ycos + rectangle.Rect.Y + rectangle.Origin.Y,
-                trx = wcos - ysin + rectangle.Rect.X + rectangle.Origin.X,
-                tr_y = wsin + ycos + rectangle.Rect.Y + rectangle.Origin.Y,
-                brx = wcos - hsin + rectangle.Rect.X + rectangle.Origin.X,
-                bry = wsin + hcos + rectangle.Rect.Y + rectangle.Origin.Y,
-                blx = xcos - hsin + rectangle.Rect.X + rectangle.Origin.X,
-                bly = xsin + hcos + rectangle.Rect.Y + rectangle.Origin.Y;
+                tlx = xcos - ysin + rectangle.Rect.X,
+                tly = xsin + ycos + rectangle.Rect.Y,
+                trx = wcos - ysin + rectangle.Rect.X,
+                tr_y = wsin + ycos + rectangle.Rect.Y,
+                brx = wcos - hsin + rectangle.Rect.X,
+                bry = wsin + hcos + rectangle.Rect.Y,
+                blx = xcos - hsin + rectangle.Rect.X,
+                bly = xsin + hcos + rectangle.Rect.Y;
             if (Vector2.DistanceSquared(tl = new Vector2(tlx, tly), center) < Vector2.DistanceSquared(tr = new Vector2(trx, tr_y), center))
                 closest = tl;
             else
