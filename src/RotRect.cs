@@ -1,22 +1,17 @@
 ﻿using Microsoft.Xna.Framework;
 using System;
 
-namespace Dcrew.Spatial
-{
-    struct RotRect
-    {
-        struct Line
-        {
+namespace Dcrew.Spatial {
+    struct RotRect {
+        struct Line {
             public Vector2 A, B;
 
-            public Line(Vector2 a, Vector2 b)
-            {
+            public Line(Vector2 a, Vector2 b) {
                 A = a;
                 B = b;
             }
 
-            public Vector2 ClosestPoint(Vector2 p)
-            {
+            public Vector2 ClosestPoint(Vector2 p) {
                 var ab = B - A;
                 var distance = Vector2.Dot(p - A, ab) / ab.LengthSquared();
                 return distance < 0 ? A : distance > 1 ? B : A + ab * distance;
@@ -27,8 +22,7 @@ namespace Dcrew.Spatial
         public float Angle;
         public Vector2 Origin;
 
-        public RotRect(Rectangle rect, float angle, Vector2 origin)
-        {
+        public RotRect(Rectangle rect, float angle, Vector2 origin) {
             Rect = rect;
             Angle = angle;
             Origin = origin;
@@ -37,11 +31,9 @@ namespace Dcrew.Spatial
         public bool Intersects(Rectangle rectangle) => Intersects(new RotRect(rectangle, 0, Vector2.Zero));
         public bool Intersects(RotRect rectangle) => IntersectsAnyEdge(rectangle) || rectangle.IntersectsAnyEdge(this);
         public bool Contains(Rectangle rectangle) => Contains(new RotRect(rectangle, 0, Vector2.Zero));
-        public bool Contains(RotRect rectangle)
-        {
+        public bool Contains(RotRect rectangle) {
             static float IsLeft(Vector2 a, Vector2 b, Vector2 p) => (b.X - a.X) * (p.Y - a.Y) - (p.X - a.X) * (b.Y - a.Y);
-            static bool PointInRectangle(Vector2 x, Vector2 y, Vector2 z, Vector2 w, Vector2 p) => (IsLeft(x, y, p) > 0 && IsLeft(y, z, p) > 0 && IsLeft(z, w, p) > 0 && IsLeft(w, x, p) > 0);
-            Vector2 center = Util.Rotate(Rect, Angle, Origin).Center.ToVector2();
+            static bool PointInRectangle(Vector2 x, Vector2 y, Vector2 z, Vector2 w, Vector2 p) => IsLeft(x, y, p) > 0 && IsLeft(y, z, p) > 0 && IsLeft(z, w, p) > 0 && IsLeft(w, x, p) > 0;
             float cos = MathF.Cos(Angle),
              sin = MathF.Sin(Angle),
              x = -Origin.X,
@@ -78,15 +70,13 @@ namespace Dcrew.Spatial
              tr = new Vector2(wcos - ysin + rectangle.Rect.X, wsin + ycos + rectangle.Rect.Y),
              br = new Vector2(wcos - hsin + rectangle.Rect.X, wsin + hcos + rectangle.Rect.Y),
              bl = new Vector2(xcos - hsin + rectangle.Rect.X, xsin + hcos + rectangle.Rect.Y);
-            return PointInRectangle(tl2, tr2, br2, bl2, new Line(tl, tr).ClosestPoint(center)) && PointInRectangle(tl2, tr2, br2, bl2, new Line(tr, br).ClosestPoint(center)) && PointInRectangle(tl2, tr2, br2, bl2, new Line(br, bl).ClosestPoint(center)) && PointInRectangle(tl2, tr2, br2, bl2, new Line(bl, tl).ClosestPoint(center));
+            return PointInRectangle(tl2, tr2, br2, bl2, tl) && PointInRectangle(tl2, tr2, br2, bl2, tr) && PointInRectangle(tl2, tr2, br2, bl2, br) && PointInRectangle(tl2, tr2, br2, bl2, bl);
         }
 
-        bool IntersectsAnyEdge(RotRect rectangle)
-        {
+        bool IntersectsAnyEdge(RotRect rectangle) {
             static float IsLeft(Vector2 a, Vector2 b, Vector2 p) => (b.X - a.X) * (p.Y - a.Y) - (p.X - a.X) * (b.Y - a.Y);
-            static bool PointInRectangle(Vector2 x, Vector2 y, Vector2 z, Vector2 w, Vector2 p) => (IsLeft(x, y, p) > 0 && IsLeft(y, z, p) > 0 && IsLeft(z, w, p) > 0 && IsLeft(w, x, p) > 0);
-            Vector2 center = Util.Rotate(Rect, Angle, Origin).Center.ToVector2(),
-                closest;
+            static bool PointInRectangle(Vector2 x, Vector2 y, Vector2 z, Vector2 w, Vector2 p) => IsLeft(x, y, p) > 0 && IsLeft(y, z, p) > 0 && IsLeft(z, w, p) > 0 && IsLeft(w, x, p) > 0;
+            Vector2 center = Util.Rotate(Rect, Angle, Origin).Center.ToVector2();
             float cos = MathF.Cos(Angle),
              sin = MathF.Sin(Angle),
              x = -Origin.X,
