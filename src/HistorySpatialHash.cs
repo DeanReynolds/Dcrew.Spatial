@@ -3,20 +3,15 @@ using Microsoft.Xna.Framework;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Dcrew.Spatial
-{
+namespace Dcrew.Spatial {
     /// <summary>A <see cref="SpatialHash{T}"/> using <see cref="Apos.History"/> to allow for undoing/redoing</summary>
-    public class HistorySpatialHash<T> : History, IEnumerable<T> where T : class, IAABB
-    {
+    public class HistorySpatialHash<T> : History, IEnumerable<T> where T : class, IAABB {
         /// <summary>Set to your largest item collision radius. Default: 50</summary>
-        public int Spacing
-        {
+        public int Spacing {
             get => _tree.Spacing;
-            set
-            {
+            set {
                 var spacing = _tree.Spacing;
-                _futureSetup.Add(() =>
-                {
+                _futureSetup.Add(() => {
                     spacing = _tree.Spacing;
                     _tree.Spacing = value;
                 });
@@ -38,49 +33,41 @@ namespace Dcrew.Spatial
         HistorySpatialHash() : base(new Optional.Option<HistoryHandler>()) { }
 
         /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE</summary>
-        public void Add(T item)
-        {
+        public void Add(T item) {
             _futureSetup.Add(() => { _tree.Add(item); });
             _pastSetup.Add(() => { _tree.Remove(item); });
             TryCommit();
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
-        public void Update(T item)
-        {
+        public void Update(T item) {
             var bucket = _tree.Bucket(item);
-            _futureSetup.Add(() =>
-            {
+            _futureSetup.Add(() => {
                 bucket = _tree.Bucket(item);
                 _tree.Update(item);
             });
-            _pastSetup.Add(() =>
-            {
+            _pastSetup.Add(() => {
                 _tree.Remove(item);
                 _tree.Add(item, bucket);
             });
             TryCommit();
         }
         /// <summary>Removes <paramref name="item"/> from the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
-        public void Remove(T item)
-        {
+        public void Remove(T item) {
             _futureSetup.Add(() => { _tree.Remove(item); });
             _pastSetup.Add(() => { _tree.Add(item); });
             TryCommit();
         }
         /// <summary>Removes all items and nodes from the tree</summary>
-        public void Clear()
-        {
+        public void Clear() {
             (T Item, Point Bucket)[] items = new (T, Point)[0];
-            _futureSetup.Add(() =>
-            {
+            _futureSetup.Add(() => {
                 items = new (T, Point)[_tree.ItemCount];
                 var i = 0;
                 foreach (var item in _tree)
                     items[i++] = (item, _tree.Bucket(item));
                 _tree.Clear();
             });
-            _pastSetup.Add(() =>
-            {
+            _pastSetup.Add(() => {
                 foreach (var (Item, Bucket) in items)
                     _tree.Add(Item, Bucket);
             });
