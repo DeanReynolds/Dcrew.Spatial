@@ -1,10 +1,8 @@
 ﻿using Microsoft.Xna.Framework;
 
-namespace Dcrew.Spatial
-{
+namespace Dcrew.Spatial {
     /// <summary>Axis-aligned 2D bounding-box/rectangle</summary>
-    public interface IAABB
-    {
+    public interface IAABB {
         /// <summary>2D bounding box</summary>
         Rectangle AABB { get; }
         /// <summary>Rotation (in radians)</summary>
