@@ -6,7 +6,7 @@ using System.Reflection;
 
 namespace Dcrew.Spatial {
     /// <summary>For fast and accurate spatial partitioning. Set <see cref="Bounds"/> before use</summary>
-    public sealed class Quadtree<T> : IEnumerable<T> where T : class, IAABB {
+    public sealed class Quadtree<T> : IEnumerable<T> where T : class, IBounds {
         internal sealed class Node {
             internal sealed class FItem {
                 internal T Item;
@@ -253,7 +253,7 @@ namespace Dcrew.Spatial {
                 }
                 Pool<Node>.EnsureCount(r);
                 foreach (var i in _item2) {
-                    var aabb = Util.Rotate(i.AABB, i.Angle, i.Origin);
+                    var aabb = Util.Rotate(i.Bounds.XY, i.Bounds.Size, i.Bounds.Angle, i.Bounds.Origin);
                     _item[i] = (Insert(i, _root, aabb), aabb.Center, aabb);
                 }
                 _nodesToClean.Clear();
@@ -348,7 +348,11 @@ namespace Dcrew.Spatial {
 
         /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE</summary>
         public void Add(T item) {
-            var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
+            var aabb = Util.Rotate(item.Bounds.XY, item.Bounds.Size, item.Bounds.Angle, item.Bounds.Origin);
+            if (aabb.Width > _maxWidthItem.Size)
+                _maxWidthItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
+            if (aabb.Height > _maxHeightItem.Size)
+                _maxHeightItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
             if (_item2.Count == 0 && _root.Bounds == Rectangle.Empty)
                 Bounds = new Rectangle(aabb.Center, new Point(1));
             _item2.Add(item);
@@ -358,7 +362,7 @@ namespace Dcrew.Spatial {
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public void Update(T item) {
-            var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
+            var aabb = Util.Rotate(item.Bounds.XY, item.Bounds.Size, item.Bounds.Angle, item.Bounds.Origin);
             var xy = aabb.Center;
             if (aabb.Width > _maxWidthItem.Size)
                 _maxWidthItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
@@ -409,7 +413,7 @@ namespace Dcrew.Spatial {
             if (ReferenceEquals(item, _maxWidthItem.Item)) {
                 _maxWidthItem = (default, 0, 0);
                 foreach (T i in _item.Keys) {
-                    var aabb = Util.Rotate(i.AABB, i.Angle, i.Origin);
+                    var aabb = Util.Rotate(i.Bounds.XY, i.Bounds.Size, i.Bounds.Angle, i.Bounds.Origin);
                     if (aabb.Width > _maxWidthItem.Size)
                         _maxWidthItem = (i, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
                 }
@@ -417,8 +421,8 @@ namespace Dcrew.Spatial {
             if (ReferenceEquals(item, _maxHeightItem.Item)) {
                 _maxHeightItem = (default, 0, 0);
                 foreach (T i in _item.Keys) {
-                    var aabb = Util.Rotate(i.AABB, i.Angle, i.Origin);
-                    if (i.AABB.Height > _maxHeightItem.Size)
+                    var aabb = Util.Rotate(i.Bounds.XY, i.Bounds.Size, i.Bounds.Angle, i.Bounds.Origin);
+                    if (aabb.Height > _maxHeightItem.Size)
                         _maxHeightItem = (i, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
                 }
             }
@@ -454,8 +458,8 @@ namespace Dcrew.Spatial {
             var node = _root;
             var area2 = area;
             area2.Inflate(_maxWidthItem.HalfSize, _maxHeightItem.HalfSize);
-            var broad = new RotRect(area2, angle, new Vector2(origin.X + _maxWidthItem.HalfSize / 2f, origin.Y + _maxHeightItem.HalfSize / 2f));
-            var rect = new RotRect(area, angle, origin);
+            var broad = new RotRect(area2.Location.ToVector2(), area2.Size.ToVector2(), angle, new Vector2(origin.X + _maxWidthItem.HalfSize / 2f, origin.Y + _maxHeightItem.HalfSize / 2f));
+            var rect = new RotRect(area.Location.ToVector2(), area.Size.ToVector2(), angle, origin);
             do {
                 if (node.NW == null) {
                     if (node.ItemCount > 0) {
@@ -470,7 +474,7 @@ namespace Dcrew.Spatial {
                             while (true);
                         } else {
                             do {
-                                var aabb = new RotRect(nodeItems.Item.AABB, nodeItems.Item.Angle, nodeItems.Item.Origin);
+                                var aabb = new RotRect(nodeItems.Item.Bounds.XY, nodeItems.Item.Bounds.Size, nodeItems.Item.Bounds.Angle, nodeItems.Item.Bounds.Origin);
                                 if (rect.Intersects(aabb))
                                     yield return nodeItems.Item;
                                 if (nodeItems.Next == null)
@@ -520,7 +524,7 @@ namespace Dcrew.Spatial {
             Point min = new Point(int.MaxValue),
                 max = new Point(int.MinValue);
             foreach (var i in _item2) {
-                var pos = i.AABB.Center;
+                var pos = i.Bounds.XY.ToPoint();
                 if (pos.X < min.X)
                     min.X = pos.X;
                 if (pos.X > max.X)
@@ -536,10 +540,6 @@ namespace Dcrew.Spatial {
 
         internal Node Insert(T item, Node node, Rectangle aabb) {
             var xy = aabb.Center;
-            if (aabb.Width > _maxWidthItem.Size)
-                _maxWidthItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
-            if (aabb.Height > _maxHeightItem.Size)
-                _maxHeightItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
             _toProcess.Push(node);
             do {
                 node = _toProcess.Pop();

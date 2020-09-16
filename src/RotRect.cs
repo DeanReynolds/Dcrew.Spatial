@@ -2,7 +2,8 @@
 using System;
 
 namespace Dcrew.Spatial {
-    struct RotRect {
+    /// <summary>A rotated rectangle</summary>
+    public struct RotRect {
         struct Line {
             public Vector2 A, B;
 
@@ -18,19 +19,25 @@ namespace Dcrew.Spatial {
             }
         }
 
-        public Rectangle Rect;
+        /// <summary>Position</summary>
+        public Vector2 XY;
+        /// <summary>Size of rect (in pixels)</summary>
+        public Vector2 Size;
+        /// <summary>Rotation (in radians)</summary>
         public float Angle;
+        /// <summary>Origin (in pixels)</summary>
         public Vector2 Origin;
 
-        public RotRect(Rectangle rect, float angle, Vector2 origin) {
-            Rect = rect;
+        public RotRect(Vector2 xy, Vector2 size, float angle, Vector2 origin) {
+            XY = xy;
+            Size = size;
             Angle = angle;
             Origin = origin;
         }
 
-        public bool Intersects(Rectangle rectangle) => Intersects(new RotRect(rectangle, 0, Vector2.Zero));
+        public bool Intersects(Rectangle rectangle) => Intersects(new RotRect(rectangle.Location.ToVector2(), rectangle.Size.ToVector2(), 0, Vector2.Zero));
         public bool Intersects(RotRect rectangle) => IntersectsAnyEdge(rectangle) || rectangle.IntersectsAnyEdge(this);
-        public bool Contains(Rectangle rectangle) => Contains(new RotRect(rectangle, 0, Vector2.Zero));
+        public bool Contains(Rectangle rectangle) => Contains(new RotRect(rectangle.Location.ToVector2(), rectangle.Size.ToVector2(), 0, Vector2.Zero));
         public bool Contains(RotRect rectangle) {
             static float IsLeft(Vector2 a, Vector2 b, Vector2 p) => (b.X - a.X) * (p.Y - a.Y) - (p.X - a.X) * (b.Y - a.Y);
             static bool PointInRectangle(Vector2 x, Vector2 y, Vector2 z, Vector2 w, Vector2 p) => IsLeft(x, y, p) > 0 && IsLeft(y, z, p) > 0 && IsLeft(z, w, p) > 0 && IsLeft(w, x, p) > 0;
@@ -38,8 +45,8 @@ namespace Dcrew.Spatial {
              sin = MathF.Sin(Angle),
              x = -Origin.X,
              y = -Origin.Y,
-             w = Rect.Width + x,
-             h = Rect.Height + y,
+             w = Size.X + x,
+             h = Size.Y + y,
              xcos = x * cos,
              ycos = y * cos,
              xsin = x * sin,
@@ -48,16 +55,16 @@ namespace Dcrew.Spatial {
              wsin = w * sin,
              hcos = h * cos,
              hsin = h * sin;
-            Vector2 tl2 = new Vector2(xcos - ysin + Rect.X, xsin + ycos + Rect.Y),
-             tr2 = new Vector2(wcos - ysin + Rect.X, wsin + ycos + Rect.Y),
-             br2 = new Vector2(wcos - hsin + Rect.X, wsin + hcos + Rect.Y),
-             bl2 = new Vector2(xcos - hsin + Rect.X, xsin + hcos + Rect.Y);
+            Vector2 tl2 = new Vector2(xcos - ysin + XY.X, xsin + ycos + XY.Y),
+             tr2 = new Vector2(wcos - ysin + XY.X, wsin + ycos + XY.Y),
+             br2 = new Vector2(wcos - hsin + XY.X, wsin + hcos + XY.Y),
+             bl2 = new Vector2(xcos - hsin + XY.X, xsin + hcos + XY.Y);
             cos = MathF.Cos(rectangle.Angle);
             sin = MathF.Sin(rectangle.Angle);
             x = -rectangle.Origin.X;
             y = -rectangle.Origin.Y;
-            w = rectangle.Rect.Width + x;
-            h = rectangle.Rect.Height + y;
+            w = rectangle.Size.X + x;
+            h = rectangle.Size.Y + y;
             xcos = x * cos;
             ycos = y * cos;
             xsin = x * sin;
@@ -66,23 +73,23 @@ namespace Dcrew.Spatial {
             wsin = w * sin;
             hcos = h * cos;
             hsin = h * sin;
-            Vector2 tl = new Vector2(xcos - ysin + rectangle.Rect.X, xsin + ycos + rectangle.Rect.Y),
-             tr = new Vector2(wcos - ysin + rectangle.Rect.X, wsin + ycos + rectangle.Rect.Y),
-             br = new Vector2(wcos - hsin + rectangle.Rect.X, wsin + hcos + rectangle.Rect.Y),
-             bl = new Vector2(xcos - hsin + rectangle.Rect.X, xsin + hcos + rectangle.Rect.Y);
+            Vector2 tl = new Vector2(xcos - ysin + rectangle.XY.X, xsin + ycos + rectangle.XY.Y),
+             tr = new Vector2(wcos - ysin + rectangle.XY.X, wsin + ycos + rectangle.XY.Y),
+             br = new Vector2(wcos - hsin + rectangle.XY.X, wsin + hcos + rectangle.XY.Y),
+             bl = new Vector2(xcos - hsin + rectangle.XY.X, xsin + hcos + rectangle.XY.Y);
             return PointInRectangle(tl2, tr2, br2, bl2, tl) && PointInRectangle(tl2, tr2, br2, bl2, tr) && PointInRectangle(tl2, tr2, br2, bl2, br) && PointInRectangle(tl2, tr2, br2, bl2, bl);
         }
 
         bool IntersectsAnyEdge(RotRect rectangle) {
             static float IsLeft(Vector2 a, Vector2 b, Vector2 p) => (b.X - a.X) * (p.Y - a.Y) - (p.X - a.X) * (b.Y - a.Y);
             static bool PointInRectangle(Vector2 x, Vector2 y, Vector2 z, Vector2 w, Vector2 p) => IsLeft(x, y, p) > 0 && IsLeft(y, z, p) > 0 && IsLeft(z, w, p) > 0 && IsLeft(w, x, p) > 0;
-            Vector2 center = Util.Rotate(Rect, Angle, Origin).Center.ToVector2();
+            Vector2 center = Util.Rotate(XY, Size, Angle, Origin).Center.ToVector2();
             float cos = MathF.Cos(Angle),
              sin = MathF.Sin(Angle),
              x = -Origin.X,
              y = -Origin.Y,
-             w = Rect.Width + x,
-             h = Rect.Height + y,
+             w = Size.X + x,
+             h = Size.Y + y,
              xcos = x * cos,
              ycos = y * cos,
              xsin = x * sin,
@@ -91,16 +98,16 @@ namespace Dcrew.Spatial {
              wsin = w * sin,
              hcos = h * cos,
              hsin = h * sin;
-            Vector2 tl2 = new Vector2(xcos - ysin + Rect.X, xsin + ycos + Rect.Y),
-             tr2 = new Vector2(wcos - ysin + Rect.X, wsin + ycos + Rect.Y),
-             br2 = new Vector2(wcos - hsin + Rect.X, wsin + hcos + Rect.Y),
-             bl2 = new Vector2(xcos - hsin + Rect.X, xsin + hcos + Rect.Y);
+            Vector2 tl2 = new Vector2(xcos - ysin + XY.X, xsin + ycos + XY.Y),
+             tr2 = new Vector2(wcos - ysin + XY.X, wsin + ycos + XY.Y),
+             br2 = new Vector2(wcos - hsin + XY.X, wsin + hcos + XY.Y),
+             bl2 = new Vector2(xcos - hsin + XY.X, xsin + hcos + XY.Y);
             cos = MathF.Cos(rectangle.Angle);
             sin = MathF.Sin(rectangle.Angle);
             x = -rectangle.Origin.X;
             y = -rectangle.Origin.Y;
-            w = rectangle.Rect.Width + x;
-            h = rectangle.Rect.Height + y;
+            w = rectangle.Size.X + x;
+            h = rectangle.Size.Y + y;
             xcos = x * cos;
             ycos = y * cos;
             xsin = x * sin;
@@ -109,10 +116,10 @@ namespace Dcrew.Spatial {
             wsin = w * sin;
             hcos = h * cos;
             hsin = h * sin;
-            Vector2 tl = new Vector2(xcos - ysin + rectangle.Rect.X, xsin + ycos + rectangle.Rect.Y),
-             tr = new Vector2(wcos - ysin + rectangle.Rect.X, wsin + ycos + rectangle.Rect.Y),
-             br = new Vector2(wcos - hsin + rectangle.Rect.X, wsin + hcos + rectangle.Rect.Y),
-             bl = new Vector2(xcos - hsin + rectangle.Rect.X, xsin + hcos + rectangle.Rect.Y);
+            Vector2 tl = new Vector2(xcos - ysin + rectangle.XY.X, xsin + ycos + rectangle.XY.Y),
+             tr = new Vector2(wcos - ysin + rectangle.XY.X, wsin + ycos + rectangle.XY.Y),
+             br = new Vector2(wcos - hsin + rectangle.XY.X, wsin + hcos + rectangle.XY.Y),
+             bl = new Vector2(xcos - hsin + rectangle.XY.X, xsin + hcos + rectangle.XY.Y);
             return PointInRectangle(tl2, tr2, br2, bl2, new Line(tl, tr).ClosestPoint(center)) || PointInRectangle(tl2, tr2, br2, bl2, new Line(tr, br).ClosestPoint(center)) || PointInRectangle(tl2, tr2, br2, bl2, new Line(br, bl).ClosestPoint(center)) || PointInRectangle(tl2, tr2, br2, bl2, new Line(bl, tl).ClosestPoint(center));
         }
     }

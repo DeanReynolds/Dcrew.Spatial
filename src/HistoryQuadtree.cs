@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace Dcrew.Spatial
 {
     /// <summary>A <see cref="Quadtree{T}"/> using <see cref="Apos.History"/> to allow for undoing/redoing</summary>
-    public class HistoryQuadtree<T> : History, IEnumerable<T> where T : class, IAABB
+    public class HistoryQuadtree<T> : History, IEnumerable<T> where T : class, IBounds
     {
         /// <summary>Set the boundary rect of this tree</summary>
         public Rectangle Bounds
@@ -103,7 +103,7 @@ namespace Dcrew.Spatial
                 items = new (T, Rectangle)[_tree.ItemCount];
                 var i = 0;
                 foreach (var item in _tree)
-                    items[i++] = (item, Util.Rotate(item.AABB, item.Angle, item.Origin));
+                    items[i++] = (item, Util.Rotate(item.Bounds.XY, item.Bounds.Size, item.Bounds.Angle, item.Bounds.Origin));
                 _tree.Clear();
             });
             _pastSetup.Add(() =>

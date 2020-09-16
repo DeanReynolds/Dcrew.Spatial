@@ -3,17 +3,13 @@ using System;
 
 namespace Dcrew.Spatial {
     public static class Util {
-        /// <summary>Returns an axis-aligned rectangle covering <paramref name="area"/> rotated by <paramref name="angle"/> using the given offset <paramref name="origin"/></summary>
-        /// <param name="area">Area (rectangle)</param>
-        /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
-        /// <param name="origin">Origin (in pixels) of <paramref name="area"/></param>
-        public static Rectangle Rotate(Rectangle area, float angle, Vector2 origin) {
+        public static Rectangle Rotate(Vector2 xy, Vector2 size, float angle, Vector2 origin) {
             float cos = MathF.Cos(angle),
                 sin = MathF.Sin(angle),
                 x = -origin.X,
                 y = -origin.Y,
-                w = area.Width + x,
-                h = area.Height + y,
+                w = size.X + x,
+                h = size.Y + y,
                 xcos = x * cos,
                 ycos = y * cos,
                 xsin = x * sin,
@@ -59,7 +55,7 @@ namespace Dcrew.Spatial {
             if (bly > maxy)
                 maxy = bly;
             var r = new Rectangle((int)minx, (int)miny, (int)MathF.Ceiling(maxx - minx), (int)MathF.Ceiling(maxy - miny));
-            r.Offset(area.X, area.Y);
+            r.Offset(xy.X, xy.Y);
             return r;
         }
     }

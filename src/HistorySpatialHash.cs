@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace Dcrew.Spatial {
     /// <summary>A <see cref="SpatialHash{T}"/> using <see cref="Apos.History"/> to allow for undoing/redoing</summary>
-    public class HistorySpatialHash<T> : History, IEnumerable<T> where T : class, IAABB {
+    public class HistorySpatialHash<T> : History, IEnumerable<T> where T : class, IBounds {
         /// <summary>Set to your largest item collision radius. Default: 50</summary>
         public int Spacing {
             get => _tree.Spacing;

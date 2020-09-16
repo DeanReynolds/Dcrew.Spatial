@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace Dcrew.Spatial {
     /// <summary>For very fast but approximate spatial partitioning. See <see cref="Spacing"/> before use</summary>
-    public class SpatialHash<T> : IEnumerable<T> where T : class, IAABB {
+    public class SpatialHash<T> : IEnumerable<T> where T : class, IBounds {
         const int DEFAULT_SPACING = 50;
 
         /// <summary>Set to your largest item collision radius. Default: 50</summary>
@@ -112,13 +112,13 @@ namespace Dcrew.Spatial {
             for (var j = x; j < lX; j += 3)
                 for (var k = y; k < lY; k += 3)
                     foreach (var t in InQuery(new Point(j, k)))
-                        if (t.AABB.Intersects(area))
+                        if (new RotRect(t.Bounds.XY, t.Bounds.Size, t.Bounds.Angle, t.Bounds.Origin).Intersects(area))
                             yield return t;
             int e = area.Width / Spacing % 3;
             if (e > 0) {
                 for (var k = y; k < lY; k += 3)
                     foreach (var t in InQuery(new Point(e % 2 + lX, k)))
-                        if (t.AABB.Intersects(area))
+                        if (new RotRect(t.Bounds.XY, t.Bounds.Size, t.Bounds.Angle, t.Bounds.Origin).Intersects(area))
                             yield return t;
                 lX += 3;
             }
@@ -126,7 +126,7 @@ namespace Dcrew.Spatial {
             if (e > 0)
                 for (var j = x; j < lX; j += 3)
                     foreach (var t in InQuery(new Point(j, e % 2 + lY)))
-                        if (t.AABB.Intersects(area))
+                        if (new RotRect(t.Bounds.XY, t.Bounds.Size, t.Bounds.Angle, t.Bounds.Origin).Intersects(area))
                             yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
@@ -134,13 +134,13 @@ namespace Dcrew.Spatial {
         /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
         /// <param name="origin">Origin of <paramref name="area"/></param>
         public IEnumerable<T> Query(Rectangle area, float angle, Vector2 origin) {
-            area = Util.Rotate(area, angle, origin);
+            area = Util.Rotate(area.Location.ToVector2(), area.Size.ToVector2(), angle, origin);
             foreach (var t in Query(area))
                 yield return t;
         }
 
         internal Point Bucket(T item) {
-            var aabb = Util.Rotate(item.AABB, item.Angle, item.Origin);
+            var aabb = Util.Rotate(item.Bounds.XY, item.Bounds.Size, item.Bounds.Angle, item.Bounds.Origin);
             var pos = aabb.Center;
             return new Point(pos.X / Spacing, pos.Y / Spacing);
         }
