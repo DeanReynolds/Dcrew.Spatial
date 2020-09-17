@@ -358,74 +358,82 @@ namespace Dcrew.Spatial {
                 return;
             _item.Add(item, (Insert(item, _root, aabb.Center), aabb.Center));
         }
-        /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
-        public void Update(T item) {
+        /// <summary>Updates <paramref name="item"/>'s position in the tree.</summary>
+        /// <returns>True if item is in the tree and has been updated, otherwise false.</returns>
+        public bool Update(T item) {
             var aabb = Util.Rotate(item.Bounds.XY, item.Bounds.Size, item.Bounds.Angle, item.Bounds.Origin);
             var xy = aabb.Center;
             if (aabb.Width > _maxWidthItem.Size)
                 _maxWidthItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
             if (aabb.Height > _maxHeightItem.Size)
                 _maxHeightItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
-            if (TryExpandTree(xy))
-                return;
-            var c = _item[item];
-            if (c.Node.Bounds.Contains(xy) || c.Node.Parent == null) {
-                _item[item] = (c.Node, xy);
-                return;
-            }
-            c.Node.Remove(item);
-            _nodesToClean.Add(c.Node.Parent);
-            if (_updates.HasFlag(Updates.ManualMode))
-                _updates |= Updates.ManualCleanNodes;
-            else if (!_updates.HasFlag(Updates.AutoCleanNodes)) {
-                _game.Components.Add(_cleanNodes);
-                _updates |= Updates.AutoCleanNodes;
-            }
-            var node = c.Node;
-            do {
-                if (node.Parent == null)
-                    break;
-                if (node.Parent.Bounds.Contains(xy)) {
+            if (_item.TryGetValue(item, out var v)) {
+                if (TryExpandTree(xy))
+                    return true;
+                if (v.Node.Bounds.Contains(xy) || v.Node.Parent == null) {
+                    _item[item] = (v.Node, xy);
+                    return true;
+                }
+                v.Node.Remove(item);
+                _nodesToClean.Add(v.Node.Parent);
+                if (_updates.HasFlag(Updates.ManualMode))
+                    _updates |= Updates.ManualCleanNodes;
+                else if (!_updates.HasFlag(Updates.AutoCleanNodes)) {
+                    _game.Components.Add(_cleanNodes);
+                    _updates |= Updates.AutoCleanNodes;
+                }
+                var node = v.Node;
+                do {
+                    if (node.Parent == null)
+                        break;
+                    if (node.Parent.Bounds.Contains(xy)) {
+                        node = node.Parent;
+                        break;
+                    }
                     node = node.Parent;
-                    break;
                 }
-                node = node.Parent;
+                while (true);
+                _item[item] = (Insert(item, node, xy), xy);
+                return true;
             }
-            while (true);
-            _item[item] = (Insert(item, node, xy), xy);
+            return false;
         }
-        /// <summary>Removes <paramref name="item"/> from the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
-        public void Remove(T item) {
-            var node = _item[item].Node;
-            node.Remove(item);
-            if (node.Parent != null)
-                _nodesToClean.Add(node.Parent);
-            if (_updates.HasFlag(Updates.ManualMode))
-                _updates |= Updates.ManualCleanNodes;
-            else if (!_updates.HasFlag(Updates.AutoCleanNodes)) {
-                _game.Components.Add(_cleanNodes);
-                _updates |= Updates.AutoCleanNodes;
-            }
-            _item.Remove(item);
-            _item2.Remove(item);
-            if (ReferenceEquals(item, _maxWidthItem.Item)) {
-                _maxWidthItem = (default, 0, 0);
-                foreach (T i in _item.Keys) {
-                    var aabb = Util.Rotate(i.Bounds.XY, i.Bounds.Size, i.Bounds.Angle, i.Bounds.Origin);
-                    if (aabb.Width > _maxWidthItem.Size)
-                        _maxWidthItem = (i, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
+        /// <summary>Removes <paramref name="item"/> from the tree.</summary>
+        /// <returns>True if item was in the tree and was removed, otherwise false.</returns>
+        public bool Remove(T item) {
+            if (_item.TryGetValue(item, out var v)) {
+                v.Node.Remove(item);
+                if (v.Node.Parent != null)
+                    _nodesToClean.Add(v.Node.Parent);
+                if (_updates.HasFlag(Updates.ManualMode))
+                    _updates |= Updates.ManualCleanNodes;
+                else if (!_updates.HasFlag(Updates.AutoCleanNodes)) {
+                    _game.Components.Add(_cleanNodes);
+                    _updates |= Updates.AutoCleanNodes;
                 }
-            }
-            if (ReferenceEquals(item, _maxHeightItem.Item)) {
-                _maxHeightItem = (default, 0, 0);
-                foreach (T i in _item.Keys) {
-                    var aabb = Util.Rotate(i.Bounds.XY, i.Bounds.Size, i.Bounds.Angle, i.Bounds.Origin);
-                    if (aabb.Height > _maxHeightItem.Size)
-                        _maxHeightItem = (i, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
+                _item.Remove(item);
+                _item2.Remove(item);
+                if (ReferenceEquals(item, _maxWidthItem.Item)) {
+                    _maxWidthItem = (default, 0, 0);
+                    foreach (T i in _item.Keys) {
+                        var aabb = Util.Rotate(i.Bounds.XY, i.Bounds.Size, i.Bounds.Angle, i.Bounds.Origin);
+                        if (aabb.Width > _maxWidthItem.Size)
+                            _maxWidthItem = (i, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
+                    }
                 }
+                if (ReferenceEquals(item, _maxHeightItem.Item)) {
+                    _maxHeightItem = (default, 0, 0);
+                    foreach (T i in _item.Keys) {
+                        var aabb = Util.Rotate(i.Bounds.XY, i.Bounds.Size, i.Bounds.Angle, i.Bounds.Origin);
+                        if (aabb.Height > _maxHeightItem.Size)
+                            _maxHeightItem = (i, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
+                    }
+                }
+                if (_item2.Count == 0)
+                    _root.Bounds = Rectangle.Empty;
+                return true;
             }
-            if (_item2.Count == 0)
-                _root.Bounds = Rectangle.Empty;
+            return false;
         }
         /// <summary>Removes all items and nodes from the tree</summary>
         public void Clear() {
@@ -629,6 +637,6 @@ namespace Dcrew.Spatial {
             return false;
         }
 
-        IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable<T>)_item2).GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => _item2.GetEnumerator();
     }
 }
