@@ -31,7 +31,7 @@ namespace Dcrew.Spatial
         /// <summary>Return count of all items</summary>
         public int ItemCount => _tree.ItemCount;
         /// <summary>Return all items and their container rects</summary>
-        public IEnumerable<(T Item, Rectangle Node, Rectangle ActualAABB)> Bundles => _tree.Bundles;
+        public IEnumerable<(T Item, Rectangle Node)> Bundles => _tree.Bundles;
         /// <summary>Return all node bounds in this tree</summary>
         public IEnumerable<Rectangle> Nodes => _tree.Nodes;
         /// <summary>Return count of all nodes</summary>
@@ -62,6 +62,7 @@ namespace Dcrew.Spatial
         {
             var ii = _tree._item[item];
             var bounds = _tree.Bounds;
+            var aabb = Util.Rotate(item.Bounds.XY, item.Bounds.Size, item.Bounds.Angle, item.Bounds.Origin);
             _futureSetup.Add(() =>
             {
                 ii = _tree._item[item];
@@ -71,7 +72,7 @@ namespace Dcrew.Spatial
             _pastSetup.Add(() =>
             {
                 _tree._item[item].Node.Remove(item);
-                _tree._item[item] = (_tree.Insert(item, ii.Node, ii.AABB), ii.XY, ii.AABB);
+                _tree._item[item] = (_tree.Insert(item, ii.Node, aabb.Center), ii.XY);
                 _tree.Bounds = bounds;
             });
             TryCommit();
@@ -82,6 +83,7 @@ namespace Dcrew.Spatial
             _futureSetup.Add(() => { _tree.Remove(item); });
             _pastSetup.Add(() => { _tree.Add(item); });
             var ii = _tree._item[item];
+            var aabb = Util.Rotate(item.Bounds.XY, item.Bounds.Size, item.Bounds.Angle, item.Bounds.Origin);
             _futureSetup.Add(() =>
             {
                 ii = _tree._item[item];
@@ -90,7 +92,7 @@ namespace Dcrew.Spatial
             _pastSetup.Add(() =>
             {
                 _tree._item2.Add(item);
-                _tree._item.Add(item, (_tree.Insert(item, ii.Node, ii.AABB), ii.XY, ii.AABB));
+                _tree._item.Add(item, (_tree.Insert(item, ii.Node, aabb.Center), ii.XY));
             });
             TryCommit();
         }
@@ -109,7 +111,7 @@ namespace Dcrew.Spatial
             _pastSetup.Add(() =>
             {
                 foreach (var (Item, AABB) in items)
-                    _tree.Insert(Item, _tree._root, AABB);
+                    _tree.Insert(Item, _tree._root, AABB.Center);
             });
             TryCommit();
         }

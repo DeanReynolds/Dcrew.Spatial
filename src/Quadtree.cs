@@ -18,7 +18,7 @@ namespace Dcrew.Spatial {
             internal Rectangle Bounds;
             internal Quadtree<T> Tree;
             internal Node Parent, NE, SE, SW, NW;
-            internal uint ItemCount;
+            internal int ItemCount;
 
             internal IEnumerable<T> Items {
                 get {
@@ -122,7 +122,7 @@ namespace Dcrew.Spatial {
                 while (Tree._toProcess.Count > 0);
             }
             internal void Clean() {
-                var count = 0U;
+                var count = 0;
                 Tree._toProcess.Push(NE);
                 Tree._toProcess.Push(SE);
                 Tree._toProcess.Push(SW);
@@ -157,7 +157,7 @@ namespace Dcrew.Spatial {
                     node = Tree._toProcess.Pop();
                     foreach (var i in node.Items) {
                         Add(i);
-                        Tree._item[i] = (this, Tree._item[i].XY, Tree._item[i].AABB);
+                        Tree._item[i] = (this, Tree._item[i].XY);
                     }
                     node.Clear();
                     Pool<Node>.Free(node);
@@ -243,18 +243,16 @@ namespace Dcrew.Spatial {
                 _root.Bounds = value;
                 int r = 1,
                     w = value.Width,
-                    h = value.Height,
-                    depth = 0;
-                while (w >= MIN_SIZE && h >= MIN_SIZE/*&&depth<MAX_DEPTH*/) {
+                    h = value.Height;
+                while (w >= MIN_SIZE && h >= MIN_SIZE) {
                     r += 4;
                     w /= 2;
                     h /= 2;
-                    depth++;
                 }
                 Pool<Node>.EnsureCount(r);
                 foreach (var i in _item2) {
                     var aabb = Util.Rotate(i.Bounds.XY, i.Bounds.Size, i.Bounds.Angle, i.Bounds.Origin);
-                    _item[i] = (Insert(i, _root, aabb), aabb.Center, aabb);
+                    _item[i] = (Insert(i, _root, aabb.Center), aabb.Center);
                 }
                 _nodesToClean.Clear();
             }
@@ -275,10 +273,10 @@ namespace Dcrew.Spatial {
         /// <summary>Return count of all items</summary>
         public int ItemCount => _item2.Count;
         /// <summary>Return all items and their container rects</summary>
-        public IEnumerable<(T Item, Rectangle Node, Rectangle ActualAABB)> Bundles {
+        public IEnumerable<(T Item, Rectangle Node)> Bundles {
             get {
                 foreach (var i in _item)
-                    yield return (i.Key, i.Value.Node.Bounds, i.Value.AABB);
+                    yield return (i.Key, i.Value.Node.Bounds);
             }
         }
         /// <summary>Return all node bounds in this tree</summary>
@@ -322,7 +320,7 @@ namespace Dcrew.Spatial {
         }
 
         internal readonly Node _root;
-        internal readonly Dictionary<T, (Node Node, Point XY, Rectangle AABB)> _item = new Dictionary<T, (Node, Point, Rectangle)>();
+        internal readonly Dictionary<T, (Node Node, Point XY)> _item = new Dictionary<T, (Node, Point)>();
         internal readonly HashSet<T> _item2 = new HashSet<T>();
         internal readonly Stack<Node> _toProcess = new Stack<Node>();
 
@@ -341,7 +339,7 @@ namespace Dcrew.Spatial {
         [Flags] enum Updates : byte { ManualMode = 1, AutoCleanNodes = 2, AutoExpandTree = 4, ManualCleanNodes = 8, ManualExpandTree = 16 }
 
         public Quadtree() {
-            _root = new Node() { Tree = this };
+            _root = new Node { Tree = this };
             _cleanNodes = new CleanNodes(this);
             _expandTree = new ExpandTree(this);
         }
@@ -358,7 +356,7 @@ namespace Dcrew.Spatial {
             _item2.Add(item);
             if (TryExpandTree(aabb.Center))
                 return;
-            _item.Add(item, (Insert(item, _root, aabb), aabb.Center, aabb));
+            _item.Add(item, (Insert(item, _root, aabb.Center), aabb.Center));
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public void Update(T item) {
@@ -372,7 +370,7 @@ namespace Dcrew.Spatial {
                 return;
             var c = _item[item];
             if (c.Node.Bounds.Contains(xy) || c.Node.Parent == null) {
-                _item[item] = (c.Node, xy, aabb);
+                _item[item] = (c.Node, xy);
                 return;
             }
             c.Node.Remove(item);
@@ -394,7 +392,7 @@ namespace Dcrew.Spatial {
                 node = node.Parent;
             }
             while (true);
-            _item[item] = (Insert(item, node, aabb), xy, aabb);
+            _item[item] = (Insert(item, node, xy), xy);
         }
         /// <summary>Removes <paramref name="item"/> from the tree. ONLY USE IF <paramref name="item"/> IS ALREADY IN THE TREE</summary>
         public void Remove(T item) {
@@ -538,8 +536,7 @@ namespace Dcrew.Spatial {
                 Bounds = new Rectangle(min.X, min.Y, max.X - min.X + 1, max.Y - min.Y + 1);
         }
 
-        internal Node Insert(T item, Node node, Rectangle aabb) {
-            var xy = aabb.Center;
+        internal Node Insert(T item, Node node, Point xy) {
             _toProcess.Push(node);
             do {
                 node = _toProcess.Pop();
@@ -586,7 +583,7 @@ namespace Dcrew.Spatial {
                         else if (node.SW.Bounds.Contains(ii.XY))
                             n = node.SW;
                         n.Add(nodeItems.Item);
-                        _item[nodeItems.Item] = (n, ii.XY, ii.AABB);
+                        _item[nodeItems.Item] = (n, ii.XY);
                         if (nodeItems.Next == null)
                             break;
                         nodeItems = nodeItems.Next;
