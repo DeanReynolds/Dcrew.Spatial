@@ -21,19 +21,21 @@ namespace Dcrew.Spatial {
 
         /// <summary>Position</summary>
         public Vector2 XY;
-        /// <summary>Size of rect (in pixels)</summary>
+        /// <summary>Size of bounds</summary>
         public Vector2 Size;
         /// <summary>Rotation (in radians)</summary>
         public float Angle;
-        /// <summary>Origin (in pixels)</summary>
+        /// <summary>Origin</summary>
         public Vector2 Origin;
 
-        public RotRect(Vector2 xy, Vector2 size, float angle, Vector2 origin) {
-            XY = xy;
-            Size = size;
+        public RotRect(float x, float y, float width, float height, float angle = default, Vector2 origin = default) {
+            XY = new Vector2(x, y);
+            Size = new Vector2(width, height);
             Angle = angle;
             Origin = origin;
         }
+        public RotRect(float x, float y, Vector2 size, float angle = default, Vector2 origin = default) : this(x, y, size.X, size.Y, angle, origin) { }
+        public RotRect(Vector2 xy, Vector2 size, float angle = default, Vector2 origin = default) : this(xy.X, xy.Y, size.X, size.Y, angle, origin) { }
 
         public bool Intersects(Rectangle rectangle) => Intersects(new RotRect(rectangle.Location.ToVector2(), rectangle.Size.ToVector2(), 0, Vector2.Zero));
         public bool Intersects(RotRect rectangle) => IntersectsAnyEdge(rectangle) || rectangle.IntersectsAnyEdge(this);
