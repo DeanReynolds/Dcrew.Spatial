@@ -73,7 +73,7 @@ foreach (var item in tree.Query(new Vector2(32.5f, 25)) {
 foreach (var item in tree.Query(new Rectangle(x: 7, y: 2, width: 32, height: 27)) {
  // ...
 }
-foreach (var item in tree.Query(new RotRect(xy: new Vector2(7, 2), size: new Vector2(32, 27), angle: 0, origin: Vector2.Zero)) {
+foreach (var item in tree.Query(new RotRect(x: 7, y: 2, width: 32, height: 27, angle: 0, origin: Vector2.Zero)) {
  // ...
 }
 ```
