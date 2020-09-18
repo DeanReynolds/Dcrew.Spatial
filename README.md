@@ -4,31 +4,79 @@
 ## Build
 ### [NuGet](https://www.nuget.org/packages/Dcrew.Spatial) [![NuGet ver](https://img.shields.io/nuget/v/Dcrew.Spatial)](https://www.nuget.org/packages/Dcrew.Spatial) [![NuGet downloads](https://img.shields.io/nuget/dt/Dcrew.Spatial)](https://www.nuget.org/packages/Dcrew.Spatial)
 
-## Features
-- #### [Quadtree](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/Quadtree.cs)
-  - using generics where T : class, [IAABB](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/IAABB.cs)
-  - Auto expands if items are added/updated outside of its current bounds
-  - [Add](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/Quadtree.cs#L303)(T item) - Adds **item** to the tree
-  - [Update](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/Quadtree.cs#L309)(T item) - Updates **item** in the tree to its latest [AABB](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/IAABB.cs)
-  - [Remove](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/Quadtree.cs#L350)(T item) - Removes **item** from the tree
-  - [Clear](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/Quadtree.cs#L386)() - Clears all items from the tree
-  - [Shrink](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/Quadtree.cs#L466)() - Shrinks the tree down to its smallest possible size given the items in the tree
-  - [Query](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/Quadtree.cs#L395)(Point xy) - Returns all items intersecting pos
-  - [Query](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/Quadtree.cs#L401)(Vector2 xy) - Returns all items intersecting pos
-  - [Query](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/Quadtree.cs#L407)(Rectangle rect) - Returns all items intersecting rect
-  - [Query](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/Quadtree.cs#L438)(Rectangle rect, float angle, Vector2 origin) - Returns all items intersecting rect rotated by angle (in radians) given origin of rect (in pixels)
-- #### [Spatial Hash](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/SpatialHash.cs)
-  - using generics where T : class, [IAABB](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/IAABB.cs)
-  - Infinite
-  - [Add](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/SpatialHash.cs#L70)(T item) - Adds **item** to the tree
-  - [Update](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/SpatialHash.cs#L78)(T item) - Updates **item** in the tree to its latest [IAABB](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/IAABB.cs) info
-  - [Remove](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/SpatialHash.cs#L98)(T item) - Removes **item** from the tree
-  - [Clear](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/SpatialHash.cs#L113)() - Clears all items from the tree
-  - [Query](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/SpatialHash.cs#L124)(Point pos) - Returns all items intersecting or near pos
-  - [Query](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/SpatialHash.cs#L126)(Vector2 pos) - Returns all items intersecting or near pos
-  - [Query](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/SpatialHash.cs#L128)(Rectangle rect) - Returns all items intersecting or near rect
-  - [Query](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/SpatialHash.cs#L159)(Rectangle rect, float angle, Vector2 origin) - Returns all items intersecting or near rect rotated by angle (in radians) given origin of rect (in pixels)
+## How to use
+1. An item must inherit IBounds (interface)
+```cs
+class Item : IBounds {
+ public RotRect Bounds; // RotRect is a struct
+ public Vector2 XY { // Position
+  get => Bounds.XY;
+  set => Bounds.XY = value;
+ }
+ public float X { // X Position
+  get => Bounds.XY.X;
+  set => Bounds.XY.X = value;
+ }
+ public float Y { // Y Position
+  get => Bounds.XY.Y;
+  set => Bounds.XY.Y = value;
+ }
+ public Vector2 Size { // Size of box (in pixels)
+  get => _bounds.Size;
+  set => _bounds.Size = value;
+ }
+ public float Angle { // Angle of box (in radians)
+  get => _bounds.Angle;
+  set => _bounds.Angle = value;
+ }
+ public Vector2 Origin { // Origin of box (in pixels)
+  get => _bounds.Origin;
+  set => _bounds.Origin = value;
+ }
+}
+```
 
+2. Make a Quadtree variable
+```cs
+Quadtree<Item> tree = new Quadtree<Item>();
+```
 
-#### What is [IAABB](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/IAABB.cs)?
-##### An interface contract required on classes that use the [Quadtree](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/Quadtree.cs) or [Spatial Hash](https://github.com/DeanReynolds/Dcrew.Spatial/blob/master/src/SpatialHash.cs), consists of an AABB (rectangle) or axis-aligned bounding box, an Angle (float, in radians) and an Origin (in pixels) of the AABB
+3. Add an item(s)
+```cs
+var itemA = new Item {
+ XY = new Vector2(0, 0),
+ Size = new Vector2(10, 6),
+ Origin = new Vector2(5, 3), // center
+ Angle = .5f
+};
+tree.Add(itemA);
+var itemB = new Item {
+ XY = new Vector2(30, 20),
+ Size = new Vector2(15, 10),
+ Origin = new Vector2(7.5f, 5), // center
+ Angle = 1.2f
+};
+tree.Add(itemB);
+```
+
+4. Query an area(s)
+```cs
+foreach (var item in tree.Query(new Point(3, 4)) {
+ // ...
+}
+foreach (var item in tree.Query(new Vector2(32.5f, 25)) {
+ // ...
+}
+foreach (var item in tree.Query(new Rectangle(7, 2, 32, 27)) {
+ // ...
+}
+foreach (var item in tree.Query(new RotRect(new Vector2(7, 2), new Vector2(32, 27), 0, Vector2.Zero)) {
+ // ...
+}
+```
+
+5. When an item moves, update it!
+```cs
+Item itemA; // has its xy, angle, size, or origin changed?
+tree.Update(itemA); // call this if so, it's incredibly optimized so don't worry!
+```
