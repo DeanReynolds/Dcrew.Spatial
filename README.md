@@ -25,7 +25,7 @@ class Item : IBounds {
   get => Bounds.Size;
   set => Bounds.Size = value;
  }
- public float Angle { // Angle (in radians)
+ public float Angle { // Rotation (in radians)
   get => Bounds.Angle;
   set => Bounds.Angle = value;
  }
