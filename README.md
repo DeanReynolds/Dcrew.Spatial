@@ -22,16 +22,16 @@ class Item : IBounds {
   set => Bounds.XY.Y = value;
  }
  public Vector2 Size { // Size of box (in pixels)
-  get => _bounds.Size;
-  set => _bounds.Size = value;
+  get => Bounds.Size;
+  set => Bounds.Size = value;
  }
  public float Angle { // Angle of box (in radians)
-  get => _bounds.Angle;
-  set => _bounds.Angle = value;
+  get => Bounds.Angle;
+  set => Bounds.Angle = value;
  }
  public Vector2 Origin { // Origin of box (in pixels)
-  get => _bounds.Origin;
-  set => _bounds.Origin = value;
+  get => Bounds.Origin;
+  set => Bounds.Origin = value;
  }
 }
 ```
