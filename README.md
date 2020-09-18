@@ -21,15 +21,15 @@ class Item : IBounds {
   get => Bounds.XY.Y;
   set => Bounds.XY.Y = value;
  }
- public Vector2 Size { // Size of box (in pixels)
+ public Vector2 Size { // Size of rect (in pixels)
   get => Bounds.Size;
   set => Bounds.Size = value;
  }
- public float Angle { // Angle of box (in radians)
+ public float Angle { // Angle (in radians)
   get => Bounds.Angle;
   set => Bounds.Angle = value;
  }
- public Vector2 Origin { // Origin of box (in pixels)
+ public Vector2 Origin { // Origin (in pixels)
   get => Bounds.Origin;
   set => Bounds.Origin = value;
  }
