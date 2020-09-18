@@ -445,27 +445,20 @@ namespace Dcrew.Spatial {
             _maxHeightItem = (default, 0, 0);
         }
         /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
-        public IEnumerable<T> Query(Point xy) {
-            foreach (var t in Query(new Rectangle(xy.X, xy.Y, 1, 1)))
-                yield return t;
-            yield break;
-        }
+        public IEnumerable<T> Query(Point xy) => Query(new Rectangle(xy.X, xy.Y, 1, 1));
         /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
-        public IEnumerable<T> Query(Vector2 xy) {
-            foreach (var t in Query(new Rectangle((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y), 1, 1)))
-                yield return t;
-            yield break;
-        }
+        public IEnumerable<T> Query(Vector2 xy) => Query(new Rectangle((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y), 1, 1));
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
         /// <param name="area">Area (rectangle)</param>
         /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
         /// <param name="origin">Origin (in pixels) of <paramref name="area"/></param>
-        public IEnumerable<T> Query(Rectangle area, float angle = 0, Vector2 origin = default) {
+        public IEnumerable<T> Query(Rectangle area, float angle = 0, Vector2 origin = default) => Query(new RotRect(area.Location.ToVector2(), area.Size.ToVector2(), angle, origin));
+        /// <summary>Query and return the items intersecting <paramref name="rect"/></summary>
+        public IEnumerable<T> Query(RotRect rect) {
             var node = _root;
-            var area2 = area;
+            var area2 = new Rectangle(rect.XY.ToPoint(), rect.Size.ToPoint());
             area2.Inflate(_maxWidthItem.HalfSize, _maxHeightItem.HalfSize);
-            var broad = new RotRect(area2.Location.ToVector2(), area2.Size.ToVector2(), angle, new Vector2(origin.X + _maxWidthItem.HalfSize / 2f, origin.Y + _maxHeightItem.HalfSize / 2f));
-            var rect = new RotRect(area.Location.ToVector2(), area.Size.ToVector2(), angle, origin);
+            var broad = new RotRect(area2.Location.ToVector2(), area2.Size.ToVector2(), rect.Angle, new Vector2(rect.Origin.X + _maxWidthItem.HalfSize / 2f, rect.Origin.Y + _maxHeightItem.HalfSize / 2f));
             do {
                 if (node.NW == null) {
                     if (node.ItemCount > 0) {
