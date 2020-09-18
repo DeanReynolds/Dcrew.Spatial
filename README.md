@@ -21,7 +21,7 @@ class Item : IBounds {
   get => Bounds.XY.Y;
   set => Bounds.XY.Y = value;
  }
- public Vector2 Size { // Size of rect (in pixels)
+ public Vector2 Size { // Size of bound
   get => Bounds.Size;
   set => Bounds.Size = value;
  }
@@ -29,7 +29,7 @@ class Item : IBounds {
   get => Bounds.Angle;
   set => Bounds.Angle = value;
  }
- public Vector2 Origin { // Origin (in pixels)
+ public Vector2 Origin { // Origin
   get => Bounds.Origin;
   set => Bounds.Origin = value;
  }
