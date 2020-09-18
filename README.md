@@ -8,31 +8,34 @@
 1. An item must inherit IBounds (interface)
 ```cs
 class Item : IBounds {
- public RotRect Bounds; // RotRect is a struct
  public Vector2 XY { // Position
-  get => Bounds.XY;
-  set => Bounds.XY = value;
+  get => _bounds.XY;
+  set => _bounds.XY = value;
  }
  public float X { // X Position
-  get => Bounds.XY.X;
-  set => Bounds.XY.X = value;
+  get => _bounds.XY.X;
+  set => _bounds.XY.X = value;
  }
  public float Y { // Y Position
-  get => Bounds.XY.Y;
-  set => Bounds.XY.Y = value;
+  get => _bounds.XY.Y;
+  set => _bounds.XY.Y = value;
  }
- public Vector2 Size { // Size of bound
-  get => Bounds.Size;
-  set => Bounds.Size = value;
+ public Vector2 Size { // Size of bounds
+  get => _bounds.Size;
+  set => _bounds.Size = value;
  }
  public float Angle { // Rotation (in radians)
-  get => Bounds.Angle;
-  set => Bounds.Angle = value;
+  get => _bounds.Angle;
+  set => _bounds.Angle = value;
  }
  public Vector2 Origin { // Origin
-  get => Bounds.Origin;
-  set => Bounds.Origin = value;
+  get => _bounds.Origin;
+  set => _bounds.Origin = value;
  }
+ 
+ RotRect IBounds.Bounds => _bounds;
+ 
+ RotRect _bounds = new RotRect { Size = new Vector2(4, 7) };
 }
 ```
 
