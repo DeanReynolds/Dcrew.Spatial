@@ -456,9 +456,8 @@ namespace Dcrew.Spatial {
         /// <summary>Query and return the items intersecting <paramref name="rect"/></summary>
         public IEnumerable<T> Query(RotRect rect) {
             var node = _root;
-            var area2 = new Rectangle(rect.XY.ToPoint(), rect.Size.ToPoint());
-            area2.Inflate(_maxWidthItem.HalfSize, _maxHeightItem.HalfSize);
-            var broad = new RotRect(area2.Location.ToVector2(), area2.Size.ToVector2(), rect.Angle, new Vector2(rect.Origin.X + _maxWidthItem.HalfSize / 2f, rect.Origin.Y + _maxHeightItem.HalfSize / 2f));
+            var broad = rect;
+            broad.Inflate(_maxWidthItem.HalfSize, _maxHeightItem.HalfSize);
             do {
                 if (node.NW == null) {
                     if (node.ItemCount > 0) {
