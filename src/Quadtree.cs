@@ -221,8 +221,8 @@ namespace Dcrew.Spatial {
                     newHeight = _qtree.Bounds.Bottom - newTop;
                 _qtree.Bounds = new Rectangle(newLeft, newTop, Math.Max(newWidth, _qtree._extendToE - newLeft + 1), Math.Max(newHeight, _qtree._extendToS - newTop + 1));
                 _qtree._extendToN = int.MaxValue;
-                _qtree._extendToE = 0;
-                _qtree._extendToS = 0;
+                _qtree._extendToE = int.MinValue;
+                _qtree._extendToS = int.MinValue;
                 _qtree._extendToW = int.MaxValue;
                 if (_qtree._updates.HasFlag(Updates.AutoExpandTree)) {
                     _game.Components.Remove(this);
@@ -251,7 +251,7 @@ namespace Dcrew.Spatial {
                 }
                 Pool<Node>.EnsureCount(r);
                 foreach (var i in _item2) {
-                    var aabb = Util.Rotate(i.Bounds.XY, i.Bounds.Size, i.Bounds.Angle, i.Bounds.Origin);
+                    var aabb = i.Bounds.AABB;
                     _item[i] = (Insert(i, _root, aabb.Center), aabb.Center);
                 }
                 _nodesToClean.Clear();
@@ -346,7 +346,7 @@ namespace Dcrew.Spatial {
 
         /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE</summary>
         public void Add(T item) {
-            var aabb = Util.Rotate(item.Bounds.XY, item.Bounds.Size, item.Bounds.Angle, item.Bounds.Origin);
+            var aabb = item.Bounds.AABB;
             if (aabb.Width > _maxWidthItem.Size)
                 _maxWidthItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
             if (aabb.Height > _maxHeightItem.Size)
@@ -361,7 +361,7 @@ namespace Dcrew.Spatial {
         /// <summary>Updates <paramref name="item"/>'s position in the tree.</summary>
         /// <returns>True if item is in the tree and has been updated, otherwise false.</returns>
         public bool Update(T item) {
-            var aabb = Util.Rotate(item.Bounds.XY, item.Bounds.Size, item.Bounds.Angle, item.Bounds.Origin);
+            var aabb = item.Bounds.AABB;
             var xy = aabb.Center;
             if (aabb.Width > _maxWidthItem.Size)
                 _maxWidthItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
@@ -416,7 +416,7 @@ namespace Dcrew.Spatial {
                 if (ReferenceEquals(item, _maxWidthItem.Item)) {
                     _maxWidthItem = (default, 0, 0);
                     foreach (T i in _item.Keys) {
-                        var aabb = Util.Rotate(i.Bounds.XY, i.Bounds.Size, i.Bounds.Angle, i.Bounds.Origin);
+                        var aabb = i.Bounds.AABB;
                         if (aabb.Width > _maxWidthItem.Size)
                             _maxWidthItem = (i, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
                     }
@@ -424,7 +424,7 @@ namespace Dcrew.Spatial {
                 if (ReferenceEquals(item, _maxHeightItem.Item)) {
                     _maxHeightItem = (default, 0, 0);
                     foreach (T i in _item.Keys) {
-                        var aabb = Util.Rotate(i.Bounds.XY, i.Bounds.Size, i.Bounds.Angle, i.Bounds.Origin);
+                        var aabb = i.Bounds.AABB;
                         if (aabb.Height > _maxHeightItem.Size)
                             _maxHeightItem = (i, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
                     }
