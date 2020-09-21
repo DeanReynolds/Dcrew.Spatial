@@ -522,7 +522,7 @@ namespace Dcrew.Spatial {
             Point min = new Point(int.MaxValue),
                 max = new Point(int.MinValue);
             foreach (var i in _item2) {
-                var pos = i.Bounds.XY.ToPoint();
+                var pos = i.Bounds.Center.ToPoint();
                 if (pos.X < min.X)
                     min.X = pos.X;
                 if (pos.X > max.X)
