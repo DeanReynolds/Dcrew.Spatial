@@ -324,8 +324,7 @@ namespace Dcrew.Spatial {
         internal readonly HashSet<T> _item2 = new HashSet<T>();
         internal readonly Stack<Node> _toProcess = new Stack<Node>();
 
-        (T Item, int Size, int HalfSize) _maxWidthItem,
-            _maxHeightItem;
+        (T Item, int Size, int HalfSize) _maxRadiusItem;
         int _extendToN = int.MaxValue,
             _extendToE = int.MinValue,
             _extendToS = int.MinValue,
@@ -347,10 +346,10 @@ namespace Dcrew.Spatial {
         /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE</summary>
         public void Add(T item) {
             var aabb = item.Bounds.AABB;
-            if (aabb.Width > _maxWidthItem.Size)
-                _maxWidthItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
-            if (aabb.Height > _maxHeightItem.Size)
-                _maxHeightItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
+            if (aabb.Width > _maxRadiusItem.Size)
+                _maxRadiusItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
+            if (aabb.Height > _maxRadiusItem.Size)
+                _maxRadiusItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
             if (_item2.Count == 0 && _root.Bounds == Rectangle.Empty)
                 Bounds = new Rectangle(aabb.Center, new Point(1));
             _item2.Add(item);
@@ -363,10 +362,10 @@ namespace Dcrew.Spatial {
         public bool Update(T item) {
             var aabb = item.Bounds.AABB;
             var xy = aabb.Center;
-            if (aabb.Width > _maxWidthItem.Size)
-                _maxWidthItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
-            if (aabb.Height > _maxHeightItem.Size)
-                _maxHeightItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
+            if (aabb.Width > _maxRadiusItem.Size)
+                _maxRadiusItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
+            if (aabb.Height > _maxRadiusItem.Size)
+                _maxRadiusItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
             if (_item.TryGetValue(item, out var v)) {
                 if (TryExpandTree(xy))
                     return true;
@@ -413,20 +412,20 @@ namespace Dcrew.Spatial {
                 }
                 _item.Remove(item);
                 _item2.Remove(item);
-                if (ReferenceEquals(item, _maxWidthItem.Item)) {
-                    _maxWidthItem = (default, 0, 0);
-                    foreach (T i in _item.Keys) {
+                if (ReferenceEquals(item, _maxRadiusItem.Item)) {
+                    _maxRadiusItem = (default, 0, 0);
+                    foreach (T i in _item2) {
                         var aabb = i.Bounds.AABB;
-                        if (aabb.Width > _maxWidthItem.Size)
-                            _maxWidthItem = (i, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
+                        if (aabb.Width > _maxRadiusItem.Size)
+                            _maxRadiusItem = (i, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
                     }
                 }
-                if (ReferenceEquals(item, _maxHeightItem.Item)) {
-                    _maxHeightItem = (default, 0, 0);
-                    foreach (T i in _item.Keys) {
+                if (ReferenceEquals(item, _maxRadiusItem.Item)) {
+                    _maxRadiusItem = (default, 0, 0);
+                    foreach (T i in _item2) {
                         var aabb = i.Bounds.AABB;
-                        if (aabb.Height > _maxHeightItem.Size)
-                            _maxHeightItem = (i, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
+                        if (aabb.Height > _maxRadiusItem.Size)
+                            _maxRadiusItem = (i, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
                     }
                 }
                 if (_item2.Count == 0)
@@ -441,8 +440,7 @@ namespace Dcrew.Spatial {
             _root.Clear();
             _item.Clear();
             _item2.Clear();
-            _maxWidthItem = (default, 0, 0);
-            _maxHeightItem = (default, 0, 0);
+            _maxRadiusItem = (default, 0, 0);
         }
         /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
         public IEnumerable<T> Query(Point xy) => Query(new Rectangle(xy.X, xy.Y, 1, 1));
@@ -457,7 +455,7 @@ namespace Dcrew.Spatial {
         public IEnumerable<T> Query(RotRect rect) {
             var node = _root;
             var broad = rect;
-            broad.Inflate(_maxWidthItem.HalfSize, _maxHeightItem.HalfSize);
+            broad.Inflate(_maxRadiusItem.HalfSize, _maxRadiusItem.HalfSize);
             do {
                 if (node.NW == null) {
                     if (node.ItemCount > 0) {
