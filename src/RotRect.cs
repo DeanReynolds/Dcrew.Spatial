@@ -14,8 +14,13 @@ namespace Dcrew.Spatial {
 
             public Vector2 ClosestPoint(Vector2 p) {
                 var ab = B - A;
-                var distance = Vector2.Dot(p - A, ab) / ab.LengthSquared();
-                return distance < 0 ? A : distance > 1 ? B : A + ab * distance;
+                var distance = Vector2.Dot(p - A, ab);
+                if (distance < 0)
+                    return A;
+                var sqlen = ab.LengthSquared();
+                if (distance > sqlen)
+                    return B;
+                return A + ab * (distance / sqlen);
             }
         }
 
