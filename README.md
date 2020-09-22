@@ -33,7 +33,7 @@ class Item : IBounds {
   set => _bounds.Origin = value;
  }
  
- RotRect IBounds.Bounds => _bounds;
+ RotRect IBounds.Bounds => _bounds; // want to expose .Bounds? make this public and remove 'IBounds.'
  
  RotRect _bounds = new RotRect { Size = new Vector2(4, 7) };
 }
@@ -82,4 +82,10 @@ foreach (var item in tree.Query(new RotRect(x: 7, y: 2, width: 32, height: 27, a
 ```cs
 Item itemA; // has its xy, angle, size, or origin changed?
 tree.Update(itemA); // call this if so, it's incredibly optimized so don't worry!
+```
+
+6. Did an entity despawn? Remove it!
+```cs
+Item itemA;
+tree.Remove(itemA);
 ```
