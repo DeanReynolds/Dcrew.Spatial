@@ -33,7 +33,7 @@ class Item : IBounds {
   set => _bounds.Origin = value;
  }
  
- RotRect IBounds.Bounds => _bounds; // Want to expose .Bounds? make this public and remove IBounds.
+ RotRect IBounds.Bounds => _bounds; // want to expose .Bounds? make this public and remove 'IBounds.'
  
  RotRect _bounds = new RotRect { Size = new Vector2(4, 7) };
 }
