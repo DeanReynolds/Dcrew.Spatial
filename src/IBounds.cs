@@ -1,6 +1,7 @@
 ﻿namespace Dcrew.Spatial {
-    /// <summary>Oriented 2D bounding-box/rectangle</summary>
+    /// <summary>Oriented bounding box</summary>
     public interface IBounds {
+        /// <summary>A <see cref="RotRect"/> defining the bounds of this object.</summary>
         RotRect Bounds { get; }
     }
 }

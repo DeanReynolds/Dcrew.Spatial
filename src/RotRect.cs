@@ -2,7 +2,7 @@
 using System;
 
 namespace Dcrew.Spatial {
-    /// <summary>A rotated rectangle</summary>
+    /// <summary>A rotated rectangle.</summary>
     public struct RotRect {
         struct Line {
             public Vector2 A, B;
