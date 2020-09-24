@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Reflection;
 
 namespace Dcrew.Spatial {
-    /// <summary>For fast and accurate spatial partitioning. Set <see cref="Bounds"/> before use</summary>
+    /// <summary>For fast and accurate spatial partitioning. Set <see cref="Bounds"/> before use.</summary>
     public sealed class Quadtree<T> : IEnumerable<T> where T : class, IBounds {
         internal sealed class Node {
             internal sealed class FItem {
@@ -234,7 +234,7 @@ namespace Dcrew.Spatial {
         internal const int MIN_SIZE = 4,
             MAX_DEPTH = 8;
 
-        /// <summary>Set the boundary rect of this tree</summary>
+        /// <summary>Set the boundary rect of this tree.</summary>
         public Rectangle Bounds {
             get => _root.Bounds;
             set {
@@ -250,7 +250,7 @@ namespace Dcrew.Spatial {
                     h /= 2;
                 }
                 Pool<Node>.EnsureCount(r);
-                foreach (var i in _item2) {
+                foreach (var i in _safeItem) {
                     var aabb = i.Bounds.AABB;
                     _item[i] = (Insert(i, _root, aabb.Center), aabb.Center);
                 }
@@ -266,20 +266,20 @@ namespace Dcrew.Spatial {
                     _game = g;
         }
 
-        /// <summary>Returns true if <paramref name="item"/> is in the tree</summary>
-        public bool Contains(T item) => _item.ContainsKey(item);
-        /// <summary>Returns an enumerator that iterates through the collection</summary>
-        public IEnumerator<T> GetEnumerator() => _item2.GetEnumerator();
-        /// <summary>Return count of all items</summary>
-        public int ItemCount => _item2.Count;
-        /// <summary>Return all items and their container rects</summary>
+        /// <summary>Returns true if <paramref name="item"/> is in the tree.</summary>
+        public bool Contains(T item) => _safeItem.Contains(item);
+        /// <summary>Returns an enumerator that iterates through the collection.</summary>
+        public IEnumerator<T> GetEnumerator() => _safeItem.GetEnumerator();
+        /// <summary>Return count of all items.</summary>
+        public int ItemCount => _safeItem.Count;
+        /// <summary>Return all items and their container rects.</summary>
         public IEnumerable<(T Item, Rectangle Node)> Bundles {
             get {
                 foreach (var i in _item)
                     yield return (i.Key, i.Value.Node.Bounds);
             }
         }
-        /// <summary>Return all node bounds in this tree</summary>
+        /// <summary>Return all node bounds in this tree.</summary>
         public IEnumerable<Rectangle> Nodes {
             get {
                 _toProcess.Push(_root);
@@ -298,7 +298,7 @@ namespace Dcrew.Spatial {
                 while (_toProcess.Count > 0);
             }
         }
-        /// <summary>Return count of all nodes</summary>
+        /// <summary>Return count of all nodes.</summary>
         public int NodeCount {
             get {
                 var count = 0;
@@ -321,7 +321,7 @@ namespace Dcrew.Spatial {
 
         internal readonly Node _root;
         internal readonly Dictionary<T, (Node Node, Point XY)> _item = new Dictionary<T, (Node, Point)>();
-        internal readonly HashSet<T> _item2 = new HashSet<T>();
+        internal readonly SafeHashSet<T> _safeItem = new SafeHashSet<T>();
         internal readonly Stack<Node> _toProcess = new Stack<Node>();
 
         (T Item, int Size, int HalfSize) _maxRadiusItem;
@@ -337,28 +337,29 @@ namespace Dcrew.Spatial {
 
         [Flags] enum Updates : byte { ManualMode = 1, AutoCleanNodes = 2, AutoExpandTree = 4, ManualCleanNodes = 8, ManualExpandTree = 16 }
 
+        /// <summary>Construct an empty quadtree with no bounds (will auto expand).</summary>
         public Quadtree() {
             _root = new Node { Tree = this };
             _cleanNodes = new CleanNodes(this);
             _expandTree = new ExpandTree(this);
         }
 
-        /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE</summary>
+        /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE.</summary>
         public void Add(T item) {
             var aabb = item.Bounds.AABB;
             if (aabb.Width > _maxRadiusItem.Size)
                 _maxRadiusItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
             if (aabb.Height > _maxRadiusItem.Size)
                 _maxRadiusItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
-            if (_item2.Count == 0 && _root.Bounds == Rectangle.Empty)
+            if (_safeItem.Count == 0 && _root.Bounds == Rectangle.Empty)
                 Bounds = new Rectangle(aabb.Center, new Point(1));
-            _item2.Add(item);
+            _safeItem.Add(item);
             if (TryExpandTree(aabb.Center))
                 return;
             _item.Add(item, (Insert(item, _root, aabb.Center), aabb.Center));
         }
-        /// <summary>Updates <paramref name="item"/>'s position in the tree.</summary>
-        /// <returns>True if item is in the tree and has been updated, otherwise false.</returns>
+        /// <summary>Updates <paramref name="item"/>'s position in the tree..</summary>
+        /// <returns>True if item is in the tree and has been updated, otherwise false..</returns>
         public bool Update(T item) {
             var aabb = item.Bounds.AABB;
             var xy = aabb.Center;
@@ -397,8 +398,8 @@ namespace Dcrew.Spatial {
             }
             return false;
         }
-        /// <summary>Removes <paramref name="item"/> from the tree.</summary>
-        /// <returns>True if item was in the tree and was removed, otherwise false.</returns>
+        /// <summary>Removes <paramref name="item"/> from the tree..</summary>
+        /// <returns>True if item was in the tree and was removed, otherwise false..</returns>
         public bool Remove(T item) {
             if (_item.TryGetValue(item, out var v)) {
                 v.Node.Remove(item);
@@ -411,10 +412,10 @@ namespace Dcrew.Spatial {
                     _updates |= Updates.AutoCleanNodes;
                 }
                 _item.Remove(item);
-                _item2.Remove(item);
+                _safeItem.Remove(item);
                 if (ReferenceEquals(item, _maxRadiusItem.Item)) {
                     _maxRadiusItem = (default, 0, 0);
-                    foreach (T i in _item2) {
+                    foreach (T i in _safeItem) {
                         var aabb = i.Bounds.AABB;
                         if (aabb.Width > _maxRadiusItem.Size)
                             _maxRadiusItem = (i, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
@@ -422,36 +423,36 @@ namespace Dcrew.Spatial {
                 }
                 if (ReferenceEquals(item, _maxRadiusItem.Item)) {
                     _maxRadiusItem = (default, 0, 0);
-                    foreach (T i in _item2) {
+                    foreach (T i in _safeItem) {
                         var aabb = i.Bounds.AABB;
                         if (aabb.Height > _maxRadiusItem.Size)
                             _maxRadiusItem = (i, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
                     }
                 }
-                if (_item2.Count == 0)
+                if (_safeItem.Count == 0)
                     _root.Bounds = Rectangle.Empty;
                 return true;
             }
             return false;
         }
-        /// <summary>Removes all items and nodes from the tree</summary>
+        /// <summary>Removes all items and nodes from the tree.</summary>
         public void Clear() {
             _root.FreeNodes();
             _root.Clear();
             _item.Clear();
-            _item2.Clear();
+            _safeItem.Clear();
             _maxRadiusItem = (default, 0, 0);
         }
-        /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
+        /// <summary>Query and return the items intersecting <paramref name="xy"/>.</summary>
         public IEnumerable<T> Query(Point xy) => Query(new Rectangle(xy.X, xy.Y, 1, 1));
-        /// <summary>Query and return the items intersecting <paramref name="xy"/></summary>
+        /// <summary>Query and return the items intersecting <paramref name="xy"/>.</summary>
         public IEnumerable<T> Query(Vector2 xy) => Query(new Rectangle((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y), 1, 1));
-        /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
-        /// <param name="area">Area (rectangle)</param>
-        /// <param name="angle">Rotation (in radians) of <paramref name="area"/></param>
-        /// <param name="origin">Origin (in pixels) of <paramref name="area"/></param>
+        /// <summary>Query and return the items intersecting <paramref name="area"/>.</summary>
+        /// <param name="area">Area (rectangle).</param>
+        /// <param name="angle">Rotation (in radians) of <paramref name="area"/>.</param>
+        /// <param name="origin">Origin (in pixels) of <paramref name="area"/>.</param>
         public IEnumerable<T> Query(Rectangle area, float angle = 0, Vector2 origin = default) => Query(new RotRect(area.Location.ToVector2(), area.Size.ToVector2(), angle, origin));
-        /// <summary>Query and return the items intersecting <paramref name="rect"/></summary>
+        /// <summary>Query and return the items intersecting <paramref name="rect"/>.</summary>
         public IEnumerable<T> Query(RotRect rect) {
             var node = _root;
             var broad = rect;
@@ -498,7 +499,7 @@ namespace Dcrew.Spatial {
             yield break;
         }
 
-        /// <summary>You need to call this each frame if you don't use base.Update() in <see cref="Game.Update(GameTime)"/></summary>
+        /// <summary>You need to call this each frame if you don't use base.Update() in <see cref="Game.Update(GameTime)"/>.</summary>
         public void Update() {
             if (_updates.HasFlag(Updates.AutoCleanNodes)) {
                 _game.Components.Remove(_cleanNodes);
@@ -513,13 +514,13 @@ namespace Dcrew.Spatial {
             _updates = Updates.ManualMode;
         }
 
-        /// <summary>Shrinks the tree to the smallest possible size</summary>
+        /// <summary>Shrinks the tree to the smallest possible size.</summary>
         public void Shrink() {
             if (_item.Count == 0)
                 return;
             Point min = new Point(int.MaxValue),
                 max = new Point(int.MinValue);
-            foreach (var i in _item2) {
+            foreach (var i in _safeItem) {
                 var pos = i.Bounds.Center.ToPoint();
                 if (pos.X < min.X)
                     min.X = pos.X;
@@ -627,6 +628,6 @@ namespace Dcrew.Spatial {
             return false;
         }
 
-        IEnumerator IEnumerable.GetEnumerator() => _item2.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => _safeItem.GetEnumerator();
     }
 }
