@@ -89,3 +89,8 @@ tree.Update(itemA); // call this if so, it's incredibly optimized so don't worry
 Item itemA;
 tree.Remove(itemA);
 ```
+
+7. Don't use 'base.Update()' in your 'Game1.Update()'? Call this at the start or end of your game/scene update!
+```cs
+tree.Update();
+```
