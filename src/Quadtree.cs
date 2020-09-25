@@ -467,8 +467,7 @@ namespace Dcrew.Spatial {
                             while (true);
                         } else {
                             do {
-                                var aabb = new RotRect(nodeItems.Item.Bounds.XY, nodeItems.Item.Bounds.Size, nodeItems.Item.Bounds.Angle, nodeItems.Item.Bounds.Origin);
-                                if (rect.Intersects(aabb))
+                                if (rect.Intersects(nodeItems.Item.Bounds))
                                     yield return nodeItems.Item;
                                 if (nodeItems.Next == null)
                                     break;
@@ -517,15 +516,15 @@ namespace Dcrew.Spatial {
             Point min = new Point(int.MaxValue),
                 max = new Point(int.MinValue);
             foreach (var i in _safeItem) {
-                var pos = i.Bounds.Center.ToPoint();
-                if (pos.X < min.X)
-                    min.X = pos.X;
-                if (pos.X > max.X)
-                    max.X = pos.X;
-                if (pos.Y < min.Y)
-                    min.Y = pos.Y;
-                if (pos.Y > max.Y)
-                    max.Y = pos.Y;
+                var xy = i.Bounds.AABB.Center;
+                if (xy.X < min.X)
+                    min.X = xy.X;
+                if (xy.X > max.X)
+                    max.X = xy.X;
+                if (xy.Y < min.Y)
+                    min.Y = xy.Y;
+                if (xy.Y > max.Y)
+                    max.Y = xy.Y;
             }
             if (Bounds.X != min.X || Bounds.Y != min.Y || Bounds.Width != max.X - min.X + 1 || Bounds.Height != max.Y - min.Y + 1)
                 Bounds = new Rectangle(min.X, min.Y, max.X - min.X + 1, max.Y - min.Y + 1);
