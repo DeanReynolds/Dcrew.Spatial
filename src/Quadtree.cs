@@ -440,9 +440,9 @@ namespace Dcrew.Spatial {
             _maxRadiusItem = (default, 0, 0);
         }
         /// <summary>Query and return the items intersecting <paramref name="xy"/>.</summary>
-        public IEnumerable<T> Query(Point xy) => Query(new Rectangle(xy.X, xy.Y, 1, 1));
+        public IEnumerable<T> Query(Point xy) => Query(new RotRect(xy.X, xy.Y, 1, 1));
         /// <summary>Query and return the items intersecting <paramref name="xy"/>.</summary>
-        public IEnumerable<T> Query(Vector2 xy) => Query(new Rectangle((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y), 1, 1));
+        public IEnumerable<T> Query(Vector2 xy) => Query(new RotRect((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y), 1, 1));
         /// <summary>Query and return the items intersecting <paramref name="area"/>.</summary>
         /// <param name="area">Area (rectangle).</param>
         /// <param name="angle">Rotation (in radians) of <paramref name="area"/>.</param>
