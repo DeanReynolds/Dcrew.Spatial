@@ -8,8 +8,8 @@ namespace Dcrew.Spatial {
 
         bool _isDirty;
 
-        readonly HashSet<T> _set,
-        _dirty;
+        internal readonly HashSet<T> _set,
+            _dirty;
 
         public SafeHashSet() : this(4) { }
         public SafeHashSet(int capacity) {

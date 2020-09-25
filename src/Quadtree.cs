@@ -250,7 +250,7 @@ namespace Dcrew.Spatial {
                     h /= 2;
                 }
                 Pool<Node>.EnsureCount(r);
-                foreach (var i in _safeItem) {
+                foreach (var i in _safeItem._set) {
                     var aabb = i.Bounds.AABB;
                     _item[i] = (Insert(i, _root, aabb.Center), aabb.Center);
                 }
@@ -351,9 +351,11 @@ namespace Dcrew.Spatial {
                 _maxRadiusItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
             if (aabb.Height > _maxRadiusItem.Size)
                 _maxRadiusItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
-            if (_safeItem.Count == 0 && _root.Bounds == Rectangle.Empty)
-                Bounds = new Rectangle(aabb.Center, new Point(1));
             _safeItem.Add(item);
+            if (_safeItem.Count == 0 && _root.Bounds == Rectangle.Empty) {
+                Bounds = new Rectangle(aabb.Center, new Point(1));
+                return;
+            }
             if (TryExpandTree(aabb.Center))
                 return;
             _item.Add(item, (Insert(item, _root, aabb.Center), aabb.Center));
