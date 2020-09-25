@@ -419,12 +419,6 @@ namespace Dcrew.Spatial {
                         var aabb = i.Bounds.AABB;
                         if (aabb.Width > _maxRadiusItem.Size)
                             _maxRadiusItem = (i, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
-                    }
-                }
-                if (ReferenceEquals(item, _maxRadiusItem.Item)) {
-                    _maxRadiusItem = (default, 0, 0);
-                    foreach (T i in _safeItem) {
-                        var aabb = i.Bounds.AABB;
                         if (aabb.Height > _maxRadiusItem.Size)
                             _maxRadiusItem = (i, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
                     }
