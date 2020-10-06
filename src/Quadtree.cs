@@ -18,6 +18,7 @@ namespace Dcrew.Spatial {
             internal Node Parent, NE, SE, SW, NW;
             internal int ItemCount, cX, cY;
             internal byte Depth;
+            internal Rectangle Bounds;
 
             internal IEnumerable<T> Items {
                 get {
@@ -146,8 +147,6 @@ namespace Dcrew.Spatial {
                             }
                             node.Clear();
                             Pool<Node>.Free(node);
-                            if (n.ItemCount > Node.CAPACITY && n.Depth < 6)
-                                _tree._nodesToSubdivide.Add(n);
                             if (node.NW == null)
                                 continue;
                             _tree._toProcess.Push(node.NE);
@@ -162,45 +161,59 @@ namespace Dcrew.Spatial {
                         while (_tree._toProcess.Count > 0);
                     }
                 _tree._nodesToClean.Clear();
-                foreach (var n in _tree._nodesToSubdivide) {
-                    var depth = (byte)(n.Depth + 1);
-                    int halfWidth = _tree._bounds.Width >> depth,
-                        halfHeight = _tree._bounds.Height >> depth;
-                    n.NW = Pool<Node>.Spawn();
-                    n.NW.cX = n.cX - halfWidth;
-                    n.NW.cY = n.cY - halfHeight;
-                    n.NW.Depth = depth;
-                    n.NW.Parent = n;
-                    n.SW = Pool<Node>.Spawn();
-                    n.SW.cX = n.cX - halfWidth;
-                    n.SW.cY = n.cY + halfHeight;
-                    n.SW.Depth = depth;
-                    n.SW.Parent = n;
-                    n.NE = Pool<Node>.Spawn();
-                    n.NE.cX = n.cX + halfWidth;
-                    n.NE.cY = n.cY - halfHeight;
-                    n.NE.Depth = depth;
-                    n.NE.Parent = n;
-                    n.SE = Pool<Node>.Spawn();
-                    n.SE.cX = n.cX + halfWidth;
-                    n.SE.cY = n.cY + halfHeight;
-                    n.SE.Depth = depth;
-                    n.SE.Parent = n;
-                    var nodeItems = n._firstItem;
-                    do {
-                        var ii = _tree._item[nodeItems.Item];
-                        var n2 = ii.XY.X < n.cX ? ii.XY.Y < n.cY ? n.NW : n.SW : ii.XY.Y < n.cY ? n.NE : n.SE;
-                        n2.Add(nodeItems.Item);
-                        _tree._item[nodeItems.Item] = (n2, ii.XY);
-                        if (n2.ItemCount > Node.CAPACITY && n2.Depth < 6)
-                            _tree._nodesToSubdivide.Add(n2);
-                        if (nodeItems.Next == null)
-                            break;
-                        nodeItems = nodeItems.Next;
-                    } while (true);
-                    n.Clear();
-                }
+                foreach (var n in _tree._nodesToSubdivide)
+                    _tree.TrySubdivide(n);
                 _tree._nodesToSubdivide.Clear();
+                Node n3;
+                foreach (var n2 in _tree._nodesToRecountBounds) {
+                    n3 = n2;
+                start:;
+                    var bounds = Rectangle.Empty;
+                    if (n3.NW != null) {
+                        if (n3.NW.Bounds.Width != 0)
+                            bounds = n3.NW.Bounds;
+                        if (n3.NE.Bounds.Width != 0)
+                            bounds = bounds.Width == 0 ? n3.NE.Bounds : Rectangle.Union(bounds, n3.NE.Bounds);
+                        if (n3.SE.Bounds.Width != 0)
+                            bounds = bounds.Width == 0 ? n3.SE.Bounds : Rectangle.Union(bounds, n3.SE.Bounds);
+                        if (n3.SW.Bounds.Width != 0)
+                            bounds = bounds.Width == 0 ? n3.SW.Bounds : Rectangle.Union(bounds, n3.SW.Bounds);
+                        if (bounds != n3.Bounds) {
+                            n3.Bounds = bounds;
+                            if (n3.Parent != null) {
+                                n3 = n3.Parent;
+                                goto start;
+                            }
+                            continue;
+                        }
+                    }
+                    if (n3.ItemCount > 0) {
+                        int l = int.MaxValue,
+                            r = int.MinValue,
+                            t = int.MaxValue,
+                            b = int.MinValue;
+                        var nodeItems = n3._firstItem;
+                        do {
+                            var bs = nodeItems.Item.Bounds.AABB;
+                            l = l <= bs.Left ? l : bs.Left;
+                            r = r >= bs.Right ? r : bs.Right;
+                            t = t <= bs.Top ? t : bs.Top;
+                            b = b >= bs.Bottom ? b : bs.Bottom;
+                            if (nodeItems.Next == null)
+                                break;
+                            nodeItems = nodeItems.Next;
+                        }
+                        while (true);
+                        bounds = new Rectangle(l, t, r - l, b - t);
+                    }
+                    if (n3.Parent != null && n3.Bounds != bounds) {
+                        n3.Bounds = bounds;
+                        n3 = n3.Parent;
+                        goto start;
+                    }
+                    n3.Bounds = bounds;
+                }
+                _tree._nodesToRecountBounds.Clear();
                 if (_tree._updates.HasFlag(Updates.AutoCleanNodes)) {
                     _game.Components.Remove(this);
                     _tree._updates &= ~Updates.AutoCleanNodes;
@@ -285,13 +298,17 @@ namespace Dcrew.Spatial {
                     h /= 2;
                 }
                 Pool<Node>.EnsureCount(r);
+                _nodesToClean.Clear();
+                _nodesToSubdivide.Clear();
+                _nodesToRecountBounds.Clear();
                 foreach (var i in _safeItem._set) {
                     var aabb = i.Bounds.AABB;
                     var n = Insert(i, _root, aabb.Center);
                     _item[i] = (n, aabb.Center);
-                    TrySubdivide(n);
+                    if (n.ItemCount > Node.CAPACITY && n.Depth < 6)
+                        _nodesToSubdivide.Add(n);
                 }
-                _nodesToClean.Clear();
+                QueueClean();
             }
         }
 
@@ -309,13 +326,13 @@ namespace Dcrew.Spatial {
         public IEnumerator<T> GetEnumerator() => _safeItem.GetEnumerator();
         /// <summary>Return count of all items.</summary>
         public int ItemCount => _safeItem.Count;
-        ///// <summary>Return all items and their container rects.</summary>
-        //public IEnumerable<(T Item, Rectangle Node)> Bundles {
-        //    get {
-        //        foreach (var i in _item)
-        //            yield return (i.Key, i.Value.Node.Bounds);
-        //    }
-        //}
+        /// <summary>Return all items and their container rects.</summary>
+        public IEnumerable<(T Item, Rectangle Node)> Bundles {
+            get {
+                foreach (var i in _item)
+                    yield return (i.Key, i.Value.Node.Bounds);
+            }
+        }
         /// <summary>Return all node bounds in this tree.</summary>
         public IEnumerable<Rectangle> Nodes {
             get {
@@ -325,7 +342,8 @@ namespace Dcrew.Spatial {
                     n = _toProcess.Pop();
                     int halfWidth = _bounds.Width >> n.Depth,
                         halfHeight = _bounds.Height >> n.Depth;
-                    var bounds = new Rectangle(n.cX - halfWidth, n.cY - halfHeight, halfWidth << 1, halfHeight << 1);
+                    //var bounds = new Rectangle(n.cX - halfWidth, n.cY - halfHeight, halfWidth << 1, halfHeight << 1);
+                    var bounds = n.Bounds;
                     yield return bounds;
                     if (n.NW != null) {
                         _toProcess.Push(n.NE);
@@ -372,7 +390,8 @@ namespace Dcrew.Spatial {
         Updates _updates;
 
         readonly HashSet<Node> _nodesToClean = new HashSet<Node>(),
-            _nodesToSubdivide = new HashSet<Node>();
+            _nodesToSubdivide = new HashSet<Node>(),
+            _nodesToRecountBounds = new HashSet<Node>();
         readonly CleanNodes _cleanNodes;
         readonly ExpandTree _expandTree;
 
@@ -401,7 +420,10 @@ namespace Dcrew.Spatial {
                 return;
             var n = Insert(item, _root, aabb.Center);
             _item.Add(item, (n, aabb.Center));
-            TrySubdivide(n);
+            if (n.ItemCount > Node.CAPACITY && n.Depth < 6)
+                _nodesToSubdivide.Add(n);
+            _nodesToRecountBounds.Add(n);
+            QueueClean();
         }
         /// <summary>Updates <paramref name="item"/>'s position in the tree.</summary>
         /// <returns>True if item is in the tree and has been updated, otherwise false.</returns>
@@ -412,48 +434,54 @@ namespace Dcrew.Spatial {
                 _maxRadiusItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
             if (aabb.Height > _maxRadiusItem.Size)
                 _maxRadiusItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
-            if (_item.TryGetValue(item, out var v)) {
-                if (TryExpandTree(xy))
-                    return true;
-                int halfWidth = _bounds.Width >> v.Node.Depth,
-                    halfHeight = _bounds.Height >> v.Node.Depth;
-                var bounds = new Rectangle(v.Node.cX - halfWidth, v.Node.cY - halfHeight, halfWidth << 1, halfHeight << 1);
-                if (bounds.Contains(xy)) {
-                    //if (v.Node.Parent == null || (Math.Sign(xy.X - v.Node.Parent.cX) == Math.Sign(v.XY.X - v.Node.Parent.cX) && Math.Sign(xy.Y - v.Node.Parent.cY) == Math.Sign(v.XY.Y - v.Node.Parent.cY))) {
-                    _item[item] = (v.Node, xy);
-                    return true;
-                }
-                v.Node.Remove(item);
-                if (v.Node.Parent != null)
-                    _nodesToClean.Add(v.Node.Parent);
-                if (_updates.HasFlag(Updates.ManualMode))
-                    _updates |= Updates.ManualCleanNodes;
-                else if (!_updates.HasFlag(Updates.AutoCleanNodes)) {
-                    _game.Components.Add(_cleanNodes);
-                    _updates |= Updates.AutoCleanNodes;
-                }
-                var n = v.Node;
-                do {
-                    if (n.Parent == null)
-                        break;
-                    halfWidth = _bounds.Width >> n.Depth;
-                    halfHeight = _bounds.Height >> n.Depth;
-                    bounds = new Rectangle(n.cX - halfWidth, n.cY - halfHeight, halfWidth << 1, halfHeight << 1);
-                    if (bounds.Contains(xy)) {
-                        //if (Math.Sign(xy.X - n.Parent.cX) == Math.Sign(v.XY.X - n.Parent.cX) && Math.Sign(xy.Y - n.Parent.cY) == Math.Sign(v.XY.Y - n.Parent.cY)) {
-                        n = n.Parent;
-                        break;
-                    }
-                    n = n.Parent;
-                }
-                while (true);
-                var n2 = Insert(item, n, xy);
-                _item[item] = (n2, xy);
-                TrySubdivide(n2);
+            if (!_item.TryGetValue(item, out var v))
+                return false;
+            if (TryExpandTree(xy))
+                return true;
+            int halfWidth = _bounds.Width >> v.Node.Depth,
+                halfHeight = _bounds.Height >> v.Node.Depth;
+            if (v.Node == _root) {
+                _item[item] = (v.Node, xy);
+                if (_root.ItemCount > Node.CAPACITY && _root.Depth < 6)
+                    _nodesToSubdivide.Add(_root);
+                _nodesToRecountBounds.Add(_root);
+                QueueClean();
                 return true;
             }
-            return false;
+            var bounds = new Rectangle(v.Node.cX - halfWidth, v.Node.cY - halfHeight, halfWidth << 1, halfHeight << 1);
+            if (bounds.Contains(xy)) {
+                //if (Math.Sign(xy.X - v.Node.Parent.cX) == Math.Sign(v.XY.X - v.Node.Parent.cX) && Math.Sign(xy.Y - v.Node.Parent.cY) == Math.Sign(v.XY.Y - v.Node.Parent.cY)) {
+                _item[item] = (v.Node, xy);
+                _nodesToRecountBounds.Add(v.Node);
+                QueueClean();
+                return true;
+            }
+            v.Node.Remove(item);
+            _nodesToClean.Add(v.Node.Parent);
+            var n = v.Node;
+            do {
+                if (n.Parent == null)
+                    break;
+                halfWidth = _bounds.Width >> n.Depth;
+                halfHeight = _bounds.Height >> n.Depth;
+                bounds = new Rectangle(n.cX - halfWidth, n.cY - halfHeight, halfWidth << 1, halfHeight << 1);
+                if (bounds.Contains(xy)) {
+                    //if (Math.Sign(xy.X - n.Parent.cX) == Math.Sign(v.XY.X - n.Parent.cX) && Math.Sign(xy.Y - n.Parent.cY) == Math.Sign(v.XY.Y - n.Parent.cY)) {
+                    n = n.Parent;
+                    break;
+                }
+                n = n.Parent;
+            }
+            while (true);
+            var n2 = Insert(item, n, xy);
+            _item[item] = (n2, xy);
+            if (n2.ItemCount > Node.CAPACITY && n2.Depth < 6)
+                _nodesToSubdivide.Add(n2);
+            _nodesToRecountBounds.Add(n2);
+            QueueClean();
+            return true;
         }
+
         /// <summary>Removes <paramref name="item"/> from the tree.</summary>
         /// <returns>True if item was in the tree and was removed, otherwise false.</returns>
         public bool Remove(T item) {
@@ -487,11 +515,38 @@ namespace Dcrew.Spatial {
         }
         /// <summary>Removes all items and nodes from the tree.</summary>
         public void Clear() {
-            //_root.FreeNodes();
+            if (_root.NW != null) {
+                _toProcess.Push(_root.NE);
+                _toProcess.Push(_root.SE);
+                _toProcess.Push(_root.SW);
+                _toProcess.Push(_root.NW);
+                _root.NE = null;
+                _root.SE = null;
+                _root.SW = null;
+                _root.NW = null;
+                Node node;
+                do {
+                    node = _toProcess.Pop();
+                    node.Clear();
+                    Pool<Node>.Free(node);
+                    if (node.NW == null)
+                        continue;
+                    _toProcess.Push(node.NE);
+                    _toProcess.Push(node.SE);
+                    _toProcess.Push(node.SW);
+                    _toProcess.Push(node.NW);
+                    node.NE = null;
+                    node.SE = null;
+                    node.SW = null;
+                    node.NW = null;
+                }
+                while (_toProcess.Count > 0);
+            }
             _root.Clear();
             _item.Clear();
             _safeItem.Clear();
             _maxRadiusItem = (default, 0, 0);
+            _bounds = Rectangle.Empty;
         }
         /// <summary>Query and return the items intersecting <paramref name="xy"/>.</summary>
         public IEnumerable<T> Query(Point xy) => Query(new RotRect(xy.X, xy.Y, 1, 1));
@@ -505,16 +560,11 @@ namespace Dcrew.Spatial {
         /// <summary>Query and return the items intersecting <paramref name="rect"/>.</summary>
         public IEnumerable<T> Query(RotRect rect) {
             var n = _root;
-            var broad = rect;
-            broad.Inflate(_maxRadiusItem.HalfSize, _maxRadiusItem.HalfSize);
             do {
-                int halfWidth = _bounds.Width >> n.Depth,
-                    halfHeight = _bounds.Height >> n.Depth;
-                var bounds = new Rectangle(n.cX - halfWidth, n.cY - halfHeight, halfWidth << 1, halfHeight << 1);
                 if (n.NW == null) {
                     if (n.ItemCount > 0) {
                         var nodeItems = n._firstItem;
-                        if (rect.Contains(bounds)) {
+                        if (rect.Contains(n.Bounds)) {
                             do {
                                 yield return nodeItems.Item;
                                 if (nodeItems.Next == null)
@@ -533,20 +583,14 @@ namespace Dcrew.Spatial {
                             while (true);
                         }
                     }
-                } else if (broad.Intersects(bounds)) {
-                    halfWidth = _bounds.Width >> (n.Depth + 1);
-                    halfHeight = _bounds.Height >> (n.Depth + 1);
-                    bounds = new Rectangle(n.NE.cX - halfWidth, n.NE.cY - halfHeight, halfWidth << 1, halfHeight << 1);
-                    if (broad.Intersects(bounds))
+                } else if (rect.Intersects(n.Bounds)) {
+                    if (rect.Intersects(n.NE.Bounds))
                         _toProcess.Push(n.NE);
-                    bounds = new Rectangle(n.SE.cX - halfWidth, n.SE.cY - halfHeight, halfWidth << 1, halfHeight << 1);
-                    if (broad.Intersects(bounds))
+                    if (rect.Intersects(n.SE.Bounds))
                         _toProcess.Push(n.SE);
-                    bounds = new Rectangle(n.SW.cX - halfWidth, n.SW.cY - halfHeight, halfWidth << 1, halfHeight << 1);
-                    if (broad.Intersects(bounds))
+                    if (rect.Intersects(n.SW.Bounds))
                         _toProcess.Push(n.SW);
-                    bounds = new Rectangle(n.NW.cX - halfWidth, n.NW.cY - halfHeight, halfWidth << 1, halfHeight << 1);
-                    if (broad.Intersects(bounds))
+                    if (rect.Intersects(n.NW.Bounds))
                         _toProcess.Push(n.NW);
                 }
                 if (_toProcess.Count == 0)
@@ -662,6 +706,15 @@ namespace Dcrew.Spatial {
                 return true;
             }
             return false;
+        }
+
+        void QueueClean() {
+            if (_updates.HasFlag(Updates.ManualMode))
+                _updates |= Updates.ManualCleanNodes;
+            else if (!_updates.HasFlag(Updates.AutoCleanNodes)) {
+                _game.Components.Add(_cleanNodes);
+                _updates |= Updates.AutoCleanNodes;
+            }
         }
 
         IEnumerator IEnumerable.GetEnumerator() => _safeItem.GetEnumerator();
