@@ -600,6 +600,12 @@ namespace Dcrew.Spatial {
             while (true);
             yield break;
         }
+        /// <summary>Query a ray/line and return items intersecting it.</summary>
+        /// <param name="a">Start or end point of ray.</param>
+        /// <param name="b">Opposite end point of <paramref name="a"/>.</param>
+        /// <param name="thickness">Thickness (width) of ray/line.</param>
+        /// <returns></returns>
+        public IEnumerable<T> RayCast(Vector2 a, Vector2 b, float thickness = 1) => Query(new RotRect(a, new Vector2(MathF.Sqrt(Vector2.DistanceSquared(a, b)), thickness), MathF.Atan2(b.Y - a.Y, b.X - a.X), new Vector2(0, thickness / 2)));
 
         /// <summary>You need to call this each frame if you don't use base.Update() in <see cref="Game.Update(GameTime)"/>.</summary>
         public void Update() {
