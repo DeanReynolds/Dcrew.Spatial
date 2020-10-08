@@ -4,31 +4,31 @@ using System;
 namespace Dcrew.Spatial {
     /// <summary>A rotated rectangle.</summary>
     public struct RotRect {
-        /// <summary>The x and y coordinates of this <see cref="RotRect"/>.</summary>
+        /// <summary>Coordinates of this <see cref="RotRect"/>.</summary>
         public Vector2 XY;
-        /// <summary>Size of bounds</summary>
+        /// <summary>Size of bounds.</summary>
         public Vector2 Size;
-        /// <summary>The rotation (in radians) of this <see cref="RotRect"/>.</summary>
+        /// <summary>Rotation (in radians) of this <see cref="RotRect"/>.</summary>
         public float Angle;
-        /// <summary>The center of rotation of this <see cref="RotRect"/>.</summary>
+        /// <summary>Center of rotation of this <see cref="RotRect"/>.</summary>
         public Vector2 Origin;
 
-        /// <summary>The x coordinate of this <see cref="RotRect"/>.</summary>
+        /// <summary>X coordinate of this <see cref="RotRect"/>.</summary>
         public float X {
             get => XY.X;
             set => XY.X = value;
         }
-        /// <summary>The y coordinate of this <see cref="RotRect"/>.</summary>
+        /// <summary>Y coordinate of this <see cref="RotRect"/>.</summary>
         public float Y {
             get => XY.Y;
             set => XY.Y = value;
         }
-        /// <summary>The <see cref="Size.X"/> of this <see cref="RotRect"/>.</summary>
+        /// <summary>X size of this <see cref="RotRect"/>.</summary>
         public float Width {
             get => Size.X;
             set => Size.X = value;
         }
-        /// <summary>The <see cref="Size.Y"/> coordinate of this <see cref="RotRect"/>.</summary>
+        /// <summary>Y size coordinate of this <see cref="RotRect"/>.</summary>
         public float Height {
             get => Size.Y;
             set => Size.Y = value;
