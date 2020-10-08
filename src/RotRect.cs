@@ -4,26 +4,6 @@ using System;
 namespace Dcrew.Spatial {
     /// <summary>A rotated rectangle.</summary>
     public struct RotRect {
-        struct Line {
-            public Vector2 A, B;
-
-            public Line(Vector2 a, Vector2 b) {
-                A = a;
-                B = b;
-            }
-
-            public Vector2 ClosestPoint(Vector2 p) {
-                var ab = B - A;
-                var distance = Vector2.Dot(p - A, ab);
-                if (distance < 0)
-                    return A;
-                var sqlen = ab.LengthSquared();
-                if (distance > sqlen)
-                    return B;
-                return A + ab * (distance / sqlen);
-            }
-        }
-
         /// <summary>The x and y coordinates of this <see cref="RotRect"/>.</summary>
         public Vector2 XY;
         /// <summary>Size of bounds</summary>
@@ -138,12 +118,12 @@ namespace Dcrew.Spatial {
         }
 
         /// <summary>Creates a new instance of <see cref="Rectangle"/> struct, with the specified position, width, height, angle, and origin.</summary>
-        /// <param name="x">The x coordinate of the created <see cref="RotRect"/>.</param>
-        /// <param name="y">The y coordinate of the created <see cref="RotRect"/>.</param>
-        /// <param name="width">The <see cref="Size.X"/> of the created <see cref="RotRect"/>.</param>
-        /// <param name="height">The <see cref="Size.Y"/> of the created <see cref="RotRect"/>.</param>
-        /// <param name="angle">The rotation (in radians) of the created <see cref="RotRect"/>.</param>
-        /// <param name="origin">The center of rotation of the created <see cref="RotRect"/>.</param>
+        /// <param name="x">X coordinate of the created <see cref="RotRect"/>.</param>
+        /// <param name="y">Y coordinate of the created <see cref="RotRect"/>.</param>
+        /// <param name="width">X size of the created <see cref="RotRect"/>.</param>
+        /// <param name="height">Y size of the created <see cref="RotRect"/>.</param>
+        /// <param name="angle">Rotation (in radians) of the created <see cref="RotRect"/>.</param>
+        /// <param name="origin">Center of rotation of the created <see cref="RotRect"/>.</param>
         public RotRect(float x, float y, float width, float height, float angle = default, Vector2 origin = default) {
             XY = new Vector2(x, y);
             Size = new Vector2(width, height);
@@ -151,23 +131,23 @@ namespace Dcrew.Spatial {
             Origin = origin;
         }
         /// <summary>Creates a new instance of <see cref="Rectangle"/> struct, with the specified position, width, height, angle, and origin.</summary>
-        /// <param name="x">The x coordinate of the created <see cref="RotRect"/>.</param>
-        /// <param name="y">The y coordinate of the created <see cref="RotRect"/>.</param>
-        /// <param name="size">The <see cref="Size"/> of the created <see cref="RotRect"/>.</param>
-        /// <param name="angle">The rotation (in radians) of the created <see cref="RotRect"/>.</param>
-        /// <param name="origin">The center of rotation of the created <see cref="RotRect"/>.</param>
-        public RotRect(float x, float y, Vector2 size, float angle = default, Vector2 origin = default) : this(x, y, size.X, size.Y, angle, origin) { }
+        /// <param name="x">X coordinate of the created <see cref="RotRect"/>.</param>
+        /// <param name="y">Y coordinate of the created <see cref="RotRect"/>.</param>
+        /// <param name="size">Size of the created <see cref="RotRect"/>.</param>
+        /// <param name="rotation">Rotation (in radians) of the created <see cref="RotRect"/>.</param>
+        /// <param name="origin">Center of rotation of the created <see cref="RotRect"/>.</param>
+        public RotRect(float x, float y, Vector2 size, float rotation = default, Vector2 origin = default) : this(x, y, size.X, size.Y, rotation, origin) { }
         /// <summary>Creates a new instance of <see cref="Rectangle"/> struct, with the specified position, width, height, angle, and origin.</summary>
-        /// <param name="xy">The x and y coordinates of the created <see cref="RotRect"/>.</param>
-        /// <param name="size">The <see cref="Size"/> of the created <see cref="RotRect"/>.</param>
-        /// <param name="angle">The rotation (in radians) of the created <see cref="RotRect"/>.</param>
-        /// <param name="origin">The center of rotation of the created <see cref="RotRect"/>.</param>
-        public RotRect(Vector2 xy, Vector2 size, float angle = default, Vector2 origin = default) : this(xy.X, xy.Y, size.X, size.Y, angle, origin) { }
+        /// <param name="xy">Coordinates of the created <see cref="RotRect"/>.</param>
+        /// <param name="size">Size of the created <see cref="RotRect"/>.</param>
+        /// <param name="rotation">Rotation (in radians) of the created <see cref="RotRect"/>.</param>
+        /// <param name="origin">Center of rotation of the created <see cref="RotRect"/>.</param>
+        public RotRect(Vector2 xy, Vector2 size, float rotation = default, Vector2 origin = default) : this(xy.X, xy.Y, size.X, size.Y, rotation, origin) { }
         /// <summary>Creates a new instance of <see cref="Rectangle"/> struct, with the specified position, width, height, angle, and origin.</summary>
-        /// <param name="rectangle">The <see cref="Rectangle"/> to take x, y, width, and height from of the created <see cref="RotRect"/>.</param>
-        /// <param name="angle">The rotation (in radians) of the created <see cref="RotRect"/>.</param>
-        /// <param name="origin">The center of rotation of the created <see cref="RotRect"/>.</param>
-        public RotRect(Rectangle rectangle, float angle = default, Vector2 origin = default) : this(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height, angle, origin) { }
+        /// <param name="rectangle">Area of the created <see cref="RotRect"/>.</param>
+        /// <param name="rotation">Rotation (in radians) of the created <see cref="RotRect"/>.</param>
+        /// <param name="origin">Center of rotation of the created <see cref="RotRect"/>.</param>
+        public RotRect(Rectangle rectangle, float rotation = default, Vector2 origin = default) : this(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height, rotation, origin) { }
 
         /// <summary>Gets whether or not the other <see cref="Rectangle"/> intersects with this rectangle.</summary>
         /// <param name="value">The other rectangle for testing.</param>
@@ -176,7 +156,7 @@ namespace Dcrew.Spatial {
         /// <summary>Gets whether or not the other <see cref="RotRect"/> intersects with this rectangle.</summary>
         /// <param name="value">The other rectangle for testing.</param>
         /// <returns><c>true</c> if other <see cref="RotRect"/> intersects with this rectangle; <c>false</c> otherwise.</returns>
-        public bool Intersects(RotRect value) => IntersectsAnyEdge(value) || value.IntersectsAnyEdge(this);
+        public bool Intersects(RotRect value) => IntersectsAnyEdge(value)/* || value.IntersectsAnyEdge(this)*/;
 
         /// <summary>Gets whether or not the provided <see cref="Vector2"/> lies within the bounds of this <see cref="RotRect"/>.</summary>
         /// <param name="value">The coordinates to check for inclusion in this <see cref="RotRect"/>.</param>
@@ -291,7 +271,68 @@ namespace Dcrew.Spatial {
         /// <param name="amount">The x and y components to add to this <see cref="RotRect"/>.</param>
         public void Offset(Point amount) => Offset(amount.X, amount.Y);
 
-        bool IntersectsAnyEdge(RotRect rect) {
+        /// <summary>Find the closest point to the given position from within this <see cref="RotRect"/>.</summary>
+        /// <param name="xy">Position.</param>
+        /// <returns><see cref="Vector2"/> closest to <paramref name="xy"/> that lies within this <see cref="RotRect"/>.</returns>
+        public Vector2 ClosestPoint(Vector2 xy) {
+            float cos = MathF.Cos(-Angle),
+                sin = MathF.Sin(-Angle),
+                x = xy.X - XY.X,
+                y = xy.Y - XY.Y,
+                xcos = x * cos,
+                ycos = y * cos,
+                xsin = x * sin,
+                ysin = y * sin;
+            var p = new Vector2(xcos - ysin + XY.X, xsin + ycos + XY.Y);
+            p.X = MathHelper.Clamp(p.X, XY.X - Origin.X, XY.X + Size.X - Origin.X);
+            p.Y = MathHelper.Clamp(p.Y, XY.Y - Origin.Y, XY.Y + Size.Y - Origin.Y);
+            cos = MathF.Cos(Angle);
+            sin = MathF.Sin(Angle);
+            x = p.X - XY.X;
+            y = p.Y - XY.Y;
+            xcos = x * cos;
+            ycos = y * cos;
+            xsin = x * sin;
+            ysin = y * sin;
+            return new Vector2(xcos - ysin + XY.X, xsin + ycos + XY.Y);
+        }
+        /// <summary>Find the closest corner point of this <see cref="RotRect"/> to the given position.</summary>
+        /// <param name="xy">Position.</param>
+        /// <returns><see cref="Vector2"/> closest corner of this <see cref="RotRect"/> to <paramref name="xy"/>.</returns>
+        public Vector2 ClosestCornerPoint(Vector2 xy) {
+            float cos = MathF.Cos(-Angle),
+                sin = MathF.Sin(-Angle),
+                x = xy.X - XY.X,
+                y = xy.Y - XY.Y,
+                xcos = x * cos,
+                ycos = y * cos,
+                xsin = x * sin,
+                ysin = y * sin;
+            var p = new Vector2(xcos - ysin + XY.X, xsin + ycos + XY.Y);
+            float cXMin = XY.X - Origin.X,
+                cXMax = XY.X + Size.X - Origin.X,
+                cYMin = XY.Y - Origin.Y,
+                cYMax = XY.Y + Size.Y - Origin.Y;
+            if (p.X - cXMin < cXMax - p.X)
+                p.X = cXMin;
+            else
+                p.X = cXMax;
+            if (p.Y - cYMin < cYMax - p.Y)
+                p.Y = cYMin;
+            else
+                p.Y = cYMax;
+            cos = MathF.Cos(Angle);
+            sin = MathF.Sin(Angle);
+            x = p.X - XY.X;
+            y = p.Y - XY.Y;
+            xcos = x * cos;
+            ycos = y * cos;
+            xsin = x * sin;
+            ysin = y * sin;
+            return new Vector2(xcos - ysin + XY.X, xsin + ycos + XY.Y);
+        }
+
+        bool IntersectsAnyEdge(RotRect value) {
             static float IsLeft(Vector2 a, Vector2 b, Vector2 p) => (b.X - a.X) * (p.Y - a.Y) - (p.X - a.X) * (b.Y - a.Y);
             static bool PointInRectangle(Vector2 x, Vector2 y, Vector2 z, Vector2 w, Vector2 p) => IsLeft(x, y, p) > 0 && IsLeft(y, z, p) > 0 && IsLeft(z, w, p) > 0 && IsLeft(w, x, p) > 0;
             float cos = MathF.Cos(Angle),
@@ -313,25 +354,7 @@ namespace Dcrew.Spatial {
                br = new Vector2(wcos - hsin + XY.X, wsin + hcos + XY.Y),
                bl = new Vector2(xcos - hsin + XY.X, xsin + hcos + XY.Y),
                center = new Vector2((tl.X + tr.X + br.X + bl.X) / 4, (tl.Y + tr.Y + br.Y + bl.Y) / 4);
-            cos = MathF.Cos(rect.Angle);
-            sin = MathF.Sin(rect.Angle);
-            x = -rect.Origin.X;
-            y = -rect.Origin.Y;
-            w = rect.Size.X + x;
-            h = rect.Size.Y + y;
-            xcos = x * cos;
-            ycos = y * cos;
-            xsin = x * sin;
-            ysin = y * sin;
-            wcos = w * cos;
-            wsin = w * sin;
-            hcos = h * cos;
-            hsin = h * sin;
-            Vector2 oTl = new Vector2(xcos - ysin + rect.XY.X, xsin + ycos + rect.XY.Y),
-               oTr = new Vector2(wcos - ysin + rect.XY.X, wsin + ycos + rect.XY.Y),
-               oBr = new Vector2(wcos - hsin + rect.XY.X, wsin + hcos + rect.XY.Y),
-               oBl = new Vector2(xcos - hsin + rect.XY.X, xsin + hcos + rect.XY.Y);
-            return PointInRectangle(tl, tr, br, bl, new Line(oTl, oTr).ClosestPoint(center)) || PointInRectangle(tl, tr, br, bl, new Line(oTr, oBr).ClosestPoint(center)) || PointInRectangle(tl, tr, br, bl, new Line(oBr, oBl).ClosestPoint(center)) || PointInRectangle(tl, tr, br, bl, new Line(oBl, oTl).ClosestPoint(center));
+            return PointInRectangle(tl, tr, br, bl, value.ClosestPoint(center)) || PointInRectangle(tl, tr, br, bl, value.ClosestPoint(tl)) || PointInRectangle(tl, tr, br, bl, value.ClosestPoint(tr)) || PointInRectangle(tl, tr, br, bl, value.ClosestPoint(br)) || PointInRectangle(tl, tr, br, bl, value.ClosestPoint(bl));
         }
     }
 }
