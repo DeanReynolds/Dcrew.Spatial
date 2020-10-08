@@ -93,6 +93,20 @@ namespace Dcrew.Spatial {
             }
         }
 
+        public class ItemSet : HashSet<T>, IDisposable {
+            public void Dispose() {
+                Clear();
+                Pool<ItemSet>.Free(this);
+            }
+        }
+
+        public class ItemList : List<T>, IDisposable {
+            public void Dispose() {
+                Clear();
+                Pool<ItemList>.Free(this);
+            }
+        }
+
         internal sealed class CleanNodes : IGameComponent, IUpdateable {
             readonly Quadtree<T> _tree;
 
@@ -340,9 +354,6 @@ namespace Dcrew.Spatial {
                 Node n;
                 do {
                     n = _toProcess.Pop();
-                    int halfWidth = _bounds.Width >> n.Depth,
-                        halfHeight = _bounds.Height >> n.Depth;
-                    //var bounds = new Rectangle(n.cX - halfWidth, n.cY - halfHeight, halfWidth << 1, halfHeight << 1);
                     var bounds = n.Bounds;
                     yield return bounds;
                     if (n.NW != null) {
@@ -548,64 +559,68 @@ namespace Dcrew.Spatial {
             _maxRadiusItem = (default, 0, 0);
             _bounds = Rectangle.Empty;
         }
-        /// <summary>Query and return the items intersecting <paramref name="xy"/>.</summary>
-        public IEnumerable<T> Query(Point xy) => Query(new RotRect(xy.X, xy.Y, 1, 1));
-        /// <summary>Query and return the items intersecting <paramref name="xy"/>.</summary>
-        public IEnumerable<T> Query(Vector2 xy) => Query(new RotRect((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y), 1, 1));
-        /// <summary>Query and return the items intersecting <paramref name="area"/>.</summary>
-        /// <param name="area">Area (rectangle).</param>
-        /// <param name="angle">Rotation (in radians) of <paramref name="area"/>.</param>
-        /// <param name="origin">Origin (in pixels) of <paramref name="area"/>.</param>
-        public IEnumerable<T> Query(Rectangle area, float angle = 0, Vector2 origin = default) => Query(new RotRect(area.Location.ToVector2(), area.Size.ToVector2(), angle, origin));
-        /// <summary>Query and return the items intersecting <paramref name="rect"/>.</summary>
-        public IEnumerable<T> Query(RotRect rect) {
-            var n = _root;
-            do {
-                if (n.NW == null) {
-                    if (n.ItemCount > 0) {
-                        var nodeItems = n._firstItem;
-                        if (rect.Contains(n.Bounds)) {
-                            do {
-                                yield return nodeItems.Item;
-                                if (nodeItems.Next == null)
-                                    break;
-                                nodeItems = nodeItems.Next;
-                            }
-                            while (true);
-                        } else {
-                            do {
-                                if (rect.Intersects(nodeItems.Item.Bounds))
-                                    yield return nodeItems.Item;
-                                if (nodeItems.Next == null)
-                                    break;
-                                nodeItems = nodeItems.Next;
-                            }
-                            while (true);
-                        }
-                    }
-                } else if (rect.Intersects(n.Bounds)) {
-                    if (rect.Intersects(n.NE.Bounds))
-                        _toProcess.Push(n.NE);
-                    if (rect.Intersects(n.SE.Bounds))
-                        _toProcess.Push(n.SE);
-                    if (rect.Intersects(n.SW.Bounds))
-                        _toProcess.Push(n.SW);
-                    if (rect.Intersects(n.NW.Bounds))
-                        _toProcess.Push(n.NW);
-                }
-                if (_toProcess.Count == 0)
-                    break;
-                n = _toProcess.Pop();
-            }
-            while (true);
-            yield break;
+
+        /// <summary>Find all items intersecting the given position.</summary>
+        /// <param name="xy">Position.</param>
+        /// <returns>Items that overlap the given position.</returns>
+        public ItemSet OverlapRect(Point xy) => Query<ItemSet>(new RotRect(new Vector2(xy.X, xy.Y), Vector2.One));
+        /// <summary>Find all items intersecting the given position.</summary>
+        /// <param name="xy">Position.</param>
+        /// <returns>Items that overlap the given position.</returns>
+        public ItemSet OverlapRect(Vector2 xy) => Query<ItemSet>(new RotRect(new Vector2((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y)), Vector2.One));
+        /// <summary>Find all items inside of the given rectangle.</summary>
+        /// <param name="area">Area.</param>
+        /// <param name="rotation">Rotation (in radians) of the rectangle.</param>
+        /// <param name="origin">Origin of rectangle.</param>
+        /// <returns>Items that overlap the given rectangle.</returns>
+        public ItemSet OverlapRect(Rectangle area, float rotation = 0, Vector2 origin = default) => Query<ItemSet>(new RotRect(area.Location.ToVector2(), area.Size.ToVector2(), rotation, origin));
+        /// <summary>Find all items inside of the given rectangle.</summary>
+        /// <param name="xy">Position of the rectangle.</param>
+        /// <param name="size">Size of the rectangle.</param>
+        /// <param name="rotation">Rotation (in radians) of the rectangle.</param>
+        /// <param name="origin">Origin of the rectangle.</param>
+        /// <returns>Items that overlap the given rectangle.</returns>
+        public ItemSet OverlapRect(Vector2 xy, Vector2 size, float rotation = default, Vector2 origin = default) => Query<ItemSet>(new RotRect(xy, size, rotation, origin));
+        /// <summary>Find all items inside of the given rectangle.</summary>
+        /// <returns>Items that overlap the given rectangle.</returns>
+        public ItemSet OverlapRect(RotRect value) => Query<ItemSet>(value);
+        /// <summary>Find all items within the radius of the given position.</summary>
+        /// <param name="xy">Position.</param>
+        /// <param name="radius">Radius.</param>
+        /// <returns>Items that are within <paramref name="radius"/> of <paramref name="xy"/>.</returns>
+        public ItemSet OverlapRadius(Vector2 xy, float radius) => Query<ItemSet>(xy, radius);
+        /// <summary>Find all items intersecting the given line, ordered closest to <paramref name="start"/> first.</summary>
+        /// <param name="start">Start point.</param>
+        /// <param name="end">End point.</param>
+        /// <param name="thickness">Thickness (width) of line.</param>
+        /// <returns>Items that intersect the given line.</returns>
+        public ItemList LineCast(Vector2 start, Vector2 end, float thickness = 1) {
+            var items = Query<ItemList>(new RotRect(start, new Vector2(MathF.Sqrt(Vector2.DistanceSquared(start, end)), thickness), MathF.Atan2(end.Y - start.Y, end.X - start.X), new Vector2(0, thickness / 2)));
+            items.Sort((T x, T y) => Vector2.DistanceSquared(start, x.Bounds.XY) < Vector2.DistanceSquared(start, x.Bounds.XY) ? -1 : 0);
+            return items;
         }
-        /// <summary>Query a ray/line and return items intersecting it.</summary>
-        /// <param name="a">Start or end point of ray.</param>
-        /// <param name="b">Opposite end point of <paramref name="a"/>.</param>
-        /// <param name="thickness">Thickness (width) of ray/line.</param>
-        /// <returns></returns>
-        public IEnumerable<T> RayCast(Vector2 a, Vector2 b, float thickness = 1) => Query(new RotRect(a, new Vector2(MathF.Sqrt(Vector2.DistanceSquared(a, b)), thickness), MathF.Atan2(b.Y - a.Y, b.X - a.X), new Vector2(0, thickness / 2)));
+        /// <summary>Find all items intersecting the given ray, ordered closest to <paramref name="start"/> first.</summary>
+        /// <param name="start">Start point.</param>
+        /// <param name="direction">Direction of the ray.</param>
+        /// <param name="thickness">Thickness (width) of ray.</param>
+        /// <returns>Items that intersect the given ray.</returns>
+        public ItemList Raycast(Vector2 start, Vector2 direction, float thickness = 1) {
+            var end = start + (direction * float.MaxValue);
+            var items = Query<ItemList>(new RotRect(start, new Vector2(MathF.Sqrt(Vector2.DistanceSquared(start, end)), thickness), MathF.Atan2(direction.Y, direction.X), new Vector2(0, thickness / 2)));
+            items.Sort((T x, T y) => Vector2.DistanceSquared(start, x.Bounds.XY) < Vector2.DistanceSquared(start, x.Bounds.XY) ? -1 : 0);
+            return items;
+        }
+        /// <summary>Find all items intersecting the given ray, ordered closest to <paramref name="start"/> first.</summary>
+        /// <param name="start">Start point.</param>
+        /// <param name="rotation">Rotation (in radians).</param>
+        /// <param name="thickness">Thickness (width) of ray.</param>
+        /// <returns>Items that intersect the given ray.</returns>
+        public ItemList Raycast(Vector2 start, float rotation, float thickness = 1) {
+            var end = new Vector2(start.X + (MathF.Cos(rotation) * float.MaxValue), start.Y + (MathF.Sin(rotation) * float.MaxValue));
+            var items = Query<ItemList>(new RotRect(start, new Vector2(MathF.Sqrt(Vector2.DistanceSquared(start, end)), thickness), rotation, new Vector2(0, thickness / 2)));
+            items.Sort((T x, T y) => Vector2.DistanceSquared(start, x.Bounds.XY) < Vector2.DistanceSquared(start, x.Bounds.XY) ? -1 : 0);
+            return items;
+        }
 
         /// <summary>You need to call this each frame if you don't use base.Update() in <see cref="Game.Update(GameTime)"/>.</summary>
         public void Update() {
@@ -721,6 +736,81 @@ namespace Dcrew.Spatial {
                 _game.Components.Add(_cleanNodes);
                 _updates |= Updates.AutoCleanNodes;
             }
+        }
+
+        TCollection Query<TCollection>(RotRect value) where TCollection : class, ICollection<T>, new() {
+            var items = Pool<TCollection>.Spawn();
+            items.Clear();
+            var n = _root;
+            do {
+                if (n.NW == null) {
+                    if (n.ItemCount > 0) {
+                        var nodeItems = n._firstItem;
+                        if (value.Contains(n.Bounds)) {
+                            do {
+                                items.Add(nodeItems.Item);
+                                if (nodeItems.Next == null)
+                                    break;
+                                nodeItems = nodeItems.Next;
+                            } while (true);
+                        } else {
+                            do {
+                                if (value.Intersects(nodeItems.Item.Bounds))
+                                    items.Add(nodeItems.Item);
+                                if (nodeItems.Next == null)
+                                    break;
+                                nodeItems = nodeItems.Next;
+                            } while (true);
+                        }
+                    }
+                } else if (value.Intersects(n.Bounds)) {
+                    if (value.Intersects(n.NE.Bounds))
+                        _toProcess.Push(n.NE);
+                    if (value.Intersects(n.SE.Bounds))
+                        _toProcess.Push(n.SE);
+                    if (value.Intersects(n.SW.Bounds))
+                        _toProcess.Push(n.SW);
+                    if (value.Intersects(n.NW.Bounds))
+                        _toProcess.Push(n.NW);
+                }
+                if (_toProcess.Count == 0)
+                    break;
+                n = _toProcess.Pop();
+            } while (true);
+            return items;
+        }
+        TCollection Query<TCollection>(Vector2 xy, float radius) where TCollection : class, ICollection<T>, new() {
+            var rSqr = radius * radius;
+            var items = Pool<TCollection>.Spawn();
+            items.Clear();
+            var n = _root;
+            do {
+                if (n.NW == null) {
+                    if (n.ItemCount > 0) {
+                        var nodeItems = n._firstItem;
+                        do {
+                            if (Vector2.DistanceSquared(xy, nodeItems.Item.Bounds.ClosestPoint(xy)) <= rSqr)
+                                items.Add(nodeItems.Item);
+                            if (nodeItems.Next == null)
+                                break;
+                            nodeItems = nodeItems.Next;
+                        } while (true);
+                    }
+                } else if (Vector2.DistanceSquared(xy, new RotRect(n.Bounds).ClosestPoint(xy)) <= rSqr) {
+                    if (Vector2.DistanceSquared(xy, new RotRect(n.NE.Bounds).ClosestPoint(xy)) <= rSqr)
+                        _toProcess.Push(n.NE);
+                    if (Vector2.DistanceSquared(xy, new RotRect(n.SE.Bounds).ClosestPoint(xy)) <= rSqr)
+                        _toProcess.Push(n.SE);
+                    if (Vector2.DistanceSquared(xy, new RotRect(n.SW.Bounds).ClosestPoint(xy)) <= rSqr)
+                        _toProcess.Push(n.SW);
+                    if (Vector2.DistanceSquared(xy, new RotRect(n.NW.Bounds).ClosestPoint(xy)) <= rSqr)
+                        _toProcess.Push(n.NW);
+                }
+                if (_toProcess.Count == 0)
+                    break;
+                n = _toProcess.Pop();
+            } while (true);
+            return items;
         }
 
         IEnumerator IEnumerable.GetEnumerator() => _safeItem.GetEnumerator();
