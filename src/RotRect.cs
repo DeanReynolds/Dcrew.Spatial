@@ -354,7 +354,35 @@ namespace Dcrew.Spatial {
                br = new Vector2(wcos - hsin + XY.X, wsin + hcos + XY.Y),
                bl = new Vector2(xcos - hsin + XY.X, xsin + hcos + XY.Y),
                center = new Vector2((tl.X + tr.X + br.X + bl.X) / 4, (tl.Y + tr.Y + br.Y + bl.Y) / 4);
-            return PointInRectangle(tl, tr, br, bl, value.ClosestPoint(center)) || PointInRectangle(tl, tr, br, bl, value.ClosestPoint(tl)) || PointInRectangle(tl, tr, br, bl, value.ClosestPoint(tr)) || PointInRectangle(tl, tr, br, bl, value.ClosestPoint(br)) || PointInRectangle(tl, tr, br, bl, value.ClosestPoint(bl));
+            float rvCos = MathF.Cos(-value.Angle),
+                rvSin = MathF.Sin(-value.Angle),
+                vCos = MathF.Cos(value.Angle),
+                vSin = MathF.Sin(value.Angle),
+                vX = value.X,
+                vY = value.Y,
+                vMinX = value.X - value.Origin.X,
+                vMinY = value.Y - value.Origin.Y,
+                vMaxX = value.X + value.Width - value.Origin.X,
+                vMaxY = value.Y + value.Height - value.Origin.Y;
+            Vector2 ClosestPoint(Vector2 xy) {
+                float x = xy.X - vX,
+                    y = xy.Y - vY,
+                    xcos = x * rvCos,
+                    ycos = y * rvCos,
+                    xsin = x * rvSin,
+                    ysin = y * rvSin;
+                var p = new Vector2(xcos - ysin + vX, xsin + ycos + vY);
+                p.X = MathHelper.Clamp(p.X, vMinX, vMaxX);
+                p.Y = MathHelper.Clamp(p.Y, vMinY, vMaxY);
+                x = p.X - vX;
+                y = p.Y - vY;
+                xcos = x * vCos;
+                ycos = y * vCos;
+                xsin = x * vSin;
+                ysin = y * vSin;
+                return new Vector2(xcos - ysin + vX, xsin + ycos + vY);
+            }
+            return PointInRectangle(tl, tr, br, bl, ClosestPoint(center)) || PointInRectangle(tl, tr, br, bl, ClosestPoint(tl)) || PointInRectangle(tl, tr, br, bl, ClosestPoint(tr)) || PointInRectangle(tl, tr, br, bl, ClosestPoint(br)) || PointInRectangle(tl, tr, br, bl, ClosestPoint(bl));
         }
     }
 }
