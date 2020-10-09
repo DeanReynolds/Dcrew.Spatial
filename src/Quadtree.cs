@@ -393,7 +393,6 @@ namespace Dcrew.Spatial {
         internal readonly Stack<Node> _toProcess = new Stack<Node>();
 
         Rectangle _bounds;
-        (T Item, int Size, int HalfSize) _maxRadiusItem;
         int _extendToN = int.MaxValue,
             _extendToE = int.MinValue,
             _extendToS = int.MinValue,
@@ -417,40 +416,29 @@ namespace Dcrew.Spatial {
 
         /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE.</summary>
         public void Add(T item) {
-            var aabb = item.Bounds.AABB;
-            if (aabb.Width > _maxRadiusItem.Size)
-                _maxRadiusItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
-            if (aabb.Height > _maxRadiusItem.Size)
-                _maxRadiusItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
+            var xy = item.Bounds.Center.ToPoint();
             _safeItem.Add(item);
             if (_safeItem.Count == 1 && _bounds.IsEmpty) {
-                Bounds = new Rectangle(aabb.Center, new Point(1));
+                Bounds = new Rectangle(xy, new Point(1));
                 return;
             }
-            if (TryExpandTree(aabb.Center))
+            if (TryExpandTree(xy))
                 return;
-            var n = Insert(item, _root, aabb.Center);
-            _item.Add(item, (n, aabb.Center));
+            var n = Insert(item, _root, xy);
+            _item.Add(item, (n, xy));
             if (n.ItemCount > Node.CAPACITY && n.Depth < 6)
                 _nodesToSubdivide.Add(n);
             _nodesToRecountBounds.Add(n);
             QueueClean();
         }
-        /// <summary>Updates <paramref name="item"/>'s position in the tree.</summary>
+        /// <summary>Updates the given item from the tree if it exists.</summary>
         /// <returns>True if item is in the tree and has been updated, otherwise false.</returns>
         public bool Update(T item) {
-            var aabb = item.Bounds.AABB;
-            var xy = aabb.Center;
-            if (aabb.Width > _maxRadiusItem.Size)
-                _maxRadiusItem = (item, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
-            if (aabb.Height > _maxRadiusItem.Size)
-                _maxRadiusItem = (item, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
-            if (!_item.TryGetValue(item, out var v))
-                return false;
+            var xy = item.Bounds.Center.ToPoint();
             if (TryExpandTree(xy))
                 return true;
-            int halfWidth = _bounds.Width >> v.Node.Depth,
-                halfHeight = _bounds.Height >> v.Node.Depth;
+            if (!_item.TryGetValue(item, out var v))
+                return false;
             if (v.Node == _root) {
                 _item[item] = (v.Node, xy);
                 if (_root.ItemCount > Node.CAPACITY && _root.Depth < 6)
@@ -459,6 +447,8 @@ namespace Dcrew.Spatial {
                 QueueClean();
                 return true;
             }
+            int halfWidth = _bounds.Width >> v.Node.Depth,
+                halfHeight = _bounds.Height >> v.Node.Depth;
             var bounds = new Rectangle(v.Node.cX - halfWidth, v.Node.cY - halfHeight, halfWidth << 1, halfHeight << 1);
             if (bounds.Contains(xy)) {
                 //if (Math.Sign(xy.X - v.Node.Parent.cX) == Math.Sign(v.XY.X - v.Node.Parent.cX) && Math.Sign(xy.Y - v.Node.Parent.cY) == Math.Sign(v.XY.Y - v.Node.Parent.cY)) {
@@ -492,37 +482,20 @@ namespace Dcrew.Spatial {
             QueueClean();
             return true;
         }
-
-        /// <summary>Removes <paramref name="item"/> from the tree.</summary>
+        /// <summary>Removes the given item from the tree if it exists.</summary>
         /// <returns>True if item was in the tree and was removed, otherwise false.</returns>
         public bool Remove(T item) {
-            if (_item.TryGetValue(item, out var v)) {
-                v.Node.Remove(item);
-                if (v.Node.Parent != null)
-                    _nodesToClean.Add(v.Node.Parent);
-                if (_updates.HasFlag(Updates.ManualMode))
-                    _updates |= Updates.ManualCleanNodes;
-                else if (!_updates.HasFlag(Updates.AutoCleanNodes)) {
-                    _game.Components.Add(_cleanNodes);
-                    _updates |= Updates.AutoCleanNodes;
-                }
-                _item.Remove(item);
-                _safeItem.Remove(item);
-                if (ReferenceEquals(item, _maxRadiusItem.Item)) {
-                    _maxRadiusItem = (default, 0, 0);
-                    foreach (T i in _safeItem) {
-                        var aabb = i.Bounds.AABB;
-                        if (aabb.Width > _maxRadiusItem.Size)
-                            _maxRadiusItem = (i, aabb.Width, (int)MathF.Ceiling(aabb.Width / 2f));
-                        if (aabb.Height > _maxRadiusItem.Size)
-                            _maxRadiusItem = (i, aabb.Height, (int)MathF.Ceiling(aabb.Height / 2f));
-                    }
-                }
-                if (_safeItem.Count == 0)
-                    _bounds = Rectangle.Empty;
-                return true;
-            }
-            return false;
+            if (!_item.TryGetValue(item, out var v))
+                return false;
+            v.Node.Remove(item);
+            if (v.Node.Parent != null)
+                _nodesToClean.Add(v.Node.Parent);
+            QueueClean();
+            _item.Remove(item);
+            _safeItem.Remove(item);
+            if (_item.Count == 0)
+                _bounds = Rectangle.Empty;
+            return true;
         }
         /// <summary>Removes all items and nodes from the tree.</summary>
         public void Clear() {
@@ -556,7 +529,6 @@ namespace Dcrew.Spatial {
             _root.Clear();
             _item.Clear();
             _safeItem.Clear();
-            _maxRadiusItem = (default, 0, 0);
             _bounds = Rectangle.Empty;
         }
 
