@@ -112,13 +112,13 @@ namespace Dcrew.Spatial {
             for (var j = x; j < lX; j += 3)
                 for (var k = y; k < lY; k += 3)
                     foreach (var t in InQuery(new Point(j, k)))
-                        if (new RotRect(t.Bounds.XY, t.Bounds.Size, t.Bounds.Angle, t.Bounds.Origin).Intersects(area))
+                        if (new RotRect(t.Bounds.XY, t.Bounds.Size, t.Bounds.Rotation, t.Bounds.Origin).Intersects(area))
                             yield return t;
             int e = area.Width / Spacing % 3;
             if (e > 0) {
                 for (var k = y; k < lY; k += 3)
                     foreach (var t in InQuery(new Point(e % 2 + lX, k)))
-                        if (new RotRect(t.Bounds.XY, t.Bounds.Size, t.Bounds.Angle, t.Bounds.Origin).Intersects(area))
+                        if (new RotRect(t.Bounds.XY, t.Bounds.Size, t.Bounds.Rotation, t.Bounds.Origin).Intersects(area))
                             yield return t;
                 lX += 3;
             }
@@ -126,7 +126,7 @@ namespace Dcrew.Spatial {
             if (e > 0)
                 for (var j = x; j < lX; j += 3)
                     foreach (var t in InQuery(new Point(j, e % 2 + lY)))
-                        if (new RotRect(t.Bounds.XY, t.Bounds.Size, t.Bounds.Angle, t.Bounds.Origin).Intersects(area))
+                        if (new RotRect(t.Bounds.XY, t.Bounds.Size, t.Bounds.Rotation, t.Bounds.Origin).Intersects(area))
                             yield return t;
         }
         /// <summary>Query and return the items intersecting <paramref name="area"/></summary>
@@ -140,7 +140,7 @@ namespace Dcrew.Spatial {
         }
 
         internal Point Bucket(T item) {
-            var aabb = Util.Rotate(item.Bounds.XY, item.Bounds.Size, item.Bounds.Angle, item.Bounds.Origin);
+            var aabb = Util.Rotate(item.Bounds.XY, item.Bounds.Size, item.Bounds.Rotation, item.Bounds.Origin);
             var pos = aabb.Center;
             return new Point(pos.X / Spacing, pos.Y / Spacing);
         }

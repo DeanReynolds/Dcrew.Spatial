@@ -9,7 +9,7 @@ namespace Dcrew.Spatial {
         /// <summary>Size of bounds.</summary>
         public Vector2 Size;
         /// <summary>Rotation (in radians) of this <see cref="RotRect"/>.</summary>
-        public float Angle;
+        public float Rotation;
         /// <summary>Center of rotation of this <see cref="RotRect"/>.</summary>
         public Vector2 Origin;
 
@@ -37,8 +37,8 @@ namespace Dcrew.Spatial {
         /// <summary>A <see cref="Vector2"/> located in the center of this <see cref="RotRect"/>.</summary>
         public Vector2 Center {
             get {
-                float cos = MathF.Cos(Angle),
-                    sin = MathF.Sin(Angle),
+                float cos = MathF.Cos(Rotation),
+                    sin = MathF.Sin(Rotation),
                     x = -Origin.X,
                     y = -Origin.Y,
                     w = Size.X + x,
@@ -61,8 +61,8 @@ namespace Dcrew.Spatial {
         /// <summary>A <see cref="Rectangle"/> covering the min/max coordinates (bounds) of this <see cref="RotRect"/>.</summary>
         public Rectangle AABB {
             get {
-                float cos = MathF.Cos(Angle),
-                    sin = MathF.Sin(Angle),
+                float cos = MathF.Cos(Rotation),
+                    sin = MathF.Sin(Rotation),
                     x = -Origin.X,
                     y = -Origin.Y,
                     w = Size.X + x,
@@ -122,12 +122,12 @@ namespace Dcrew.Spatial {
         /// <param name="y">Y coordinate of the created <see cref="RotRect"/>.</param>
         /// <param name="width">X size of the created <see cref="RotRect"/>.</param>
         /// <param name="height">Y size of the created <see cref="RotRect"/>.</param>
-        /// <param name="angle">Rotation (in radians) of the created <see cref="RotRect"/>.</param>
+        /// <param name="rotation">Rotation (in radians) of the created <see cref="RotRect"/>.</param>
         /// <param name="origin">Center of rotation of the created <see cref="RotRect"/>.</param>
-        public RotRect(float x, float y, float width, float height, float angle = default, Vector2 origin = default) {
+        public RotRect(float x, float y, float width, float height, float rotation = default, Vector2 origin = default) {
             XY = new Vector2(x, y);
             Size = new Vector2(width, height);
-            Angle = angle;
+            Rotation = rotation;
             Origin = origin;
         }
         /// <summary>Creates a new instance of <see cref="Rectangle"/> struct, with the specified position, width, height, angle, and origin.</summary>
@@ -163,8 +163,8 @@ namespace Dcrew.Spatial {
         /// <returns><c>true</c> if the provided <see cref="Vector2"/> lies inside this <see cref="RotRect"/>; <c>false</c> otherwise.</returns>
         public bool Contains(Vector2 value) {
             static float IsLeft(Vector2 a, Vector2 b, Vector2 p) => (b.X - a.X) * (p.Y - a.Y) - (p.X - a.X) * (b.Y - a.Y);
-            float cos = MathF.Cos(Angle),
-                sin = MathF.Sin(Angle),
+            float cos = MathF.Cos(Rotation),
+                sin = MathF.Sin(Rotation),
                 x = -Origin.X,
                 y = -Origin.Y,
                 w = Size.X + x,
@@ -207,8 +207,8 @@ namespace Dcrew.Spatial {
         public bool Contains(RotRect value) {
             static float IsLeft(Vector2 a, Vector2 b, Vector2 p) => (b.X - a.X) * (p.Y - a.Y) - (p.X - a.X) * (b.Y - a.Y);
             static bool PointInRectangle(Vector2 x, Vector2 y, Vector2 z, Vector2 w, Vector2 p) => IsLeft(x, y, p) > 0 && IsLeft(y, z, p) > 0 && IsLeft(z, w, p) > 0 && IsLeft(w, x, p) > 0;
-            float cos = MathF.Cos(Angle),
-             sin = MathF.Sin(Angle),
+            float cos = MathF.Cos(Rotation),
+             sin = MathF.Sin(Rotation),
              x = -Origin.X,
              y = -Origin.Y,
              w = Size.X + x,
@@ -225,8 +225,8 @@ namespace Dcrew.Spatial {
              tr2 = new Vector2(wcos - ysin + XY.X, wsin + ycos + XY.Y),
              br2 = new Vector2(wcos - hsin + XY.X, wsin + hcos + XY.Y),
              bl2 = new Vector2(xcos - hsin + XY.X, xsin + hcos + XY.Y);
-            cos = MathF.Cos(value.Angle);
-            sin = MathF.Sin(value.Angle);
+            cos = MathF.Cos(value.Rotation);
+            sin = MathF.Sin(value.Rotation);
             x = -value.Origin.X;
             y = -value.Origin.Y;
             w = value.Size.X + x;
@@ -275,8 +275,8 @@ namespace Dcrew.Spatial {
         /// <param name="xy">Position.</param>
         /// <returns><see cref="Vector2"/> closest to <paramref name="xy"/> that lies within this <see cref="RotRect"/>.</returns>
         public Vector2 ClosestPoint(Vector2 xy) {
-            float cos = MathF.Cos(-Angle),
-                sin = MathF.Sin(-Angle),
+            float cos = MathF.Cos(-Rotation),
+                sin = MathF.Sin(-Rotation),
                 x = xy.X - XY.X,
                 y = xy.Y - XY.Y,
                 xcos = x * cos,
@@ -286,8 +286,8 @@ namespace Dcrew.Spatial {
             var p = new Vector2(xcos - ysin + XY.X, xsin + ycos + XY.Y);
             p.X = MathHelper.Clamp(p.X, XY.X - Origin.X, XY.X + Size.X - Origin.X);
             p.Y = MathHelper.Clamp(p.Y, XY.Y - Origin.Y, XY.Y + Size.Y - Origin.Y);
-            cos = MathF.Cos(Angle);
-            sin = MathF.Sin(Angle);
+            cos = MathF.Cos(Rotation);
+            sin = MathF.Sin(Rotation);
             x = p.X - XY.X;
             y = p.Y - XY.Y;
             xcos = x * cos;
@@ -300,8 +300,8 @@ namespace Dcrew.Spatial {
         /// <param name="xy">Position.</param>
         /// <returns><see cref="Vector2"/> closest corner of this <see cref="RotRect"/> to <paramref name="xy"/>.</returns>
         public Vector2 ClosestCornerPoint(Vector2 xy) {
-            float cos = MathF.Cos(-Angle),
-                sin = MathF.Sin(-Angle),
+            float cos = MathF.Cos(-Rotation),
+                sin = MathF.Sin(-Rotation),
                 x = xy.X - XY.X,
                 y = xy.Y - XY.Y,
                 xcos = x * cos,
@@ -321,8 +321,8 @@ namespace Dcrew.Spatial {
                 p.Y = cYMin;
             else
                 p.Y = cYMax;
-            cos = MathF.Cos(Angle);
-            sin = MathF.Sin(Angle);
+            cos = MathF.Cos(Rotation);
+            sin = MathF.Sin(Rotation);
             x = p.X - XY.X;
             y = p.Y - XY.Y;
             xcos = x * cos;
@@ -335,8 +335,8 @@ namespace Dcrew.Spatial {
         bool IntersectsAnyEdge(RotRect value) {
             static float IsLeft(Vector2 a, Vector2 b, Vector2 p) => (b.X - a.X) * (p.Y - a.Y) - (p.X - a.X) * (b.Y - a.Y);
             static bool PointInRectangle(Vector2 x, Vector2 y, Vector2 z, Vector2 w, Vector2 p) => IsLeft(x, y, p) > 0 && IsLeft(y, z, p) > 0 && IsLeft(z, w, p) > 0 && IsLeft(w, x, p) > 0;
-            float cos = MathF.Cos(Angle),
-                sin = MathF.Sin(Angle),
+            float cos = MathF.Cos(Rotation),
+                sin = MathF.Sin(Rotation),
                 x = -Origin.X,
                 y = -Origin.Y,
                 w = Size.X + x,
@@ -354,10 +354,10 @@ namespace Dcrew.Spatial {
                br = new Vector2(wcos - hsin + XY.X, wsin + hcos + XY.Y),
                bl = new Vector2(xcos - hsin + XY.X, xsin + hcos + XY.Y),
                center = new Vector2((tl.X + tr.X + br.X + bl.X) / 4, (tl.Y + tr.Y + br.Y + bl.Y) / 4);
-            float rvCos = MathF.Cos(-value.Angle),
-                rvSin = MathF.Sin(-value.Angle),
-                vCos = MathF.Cos(value.Angle),
-                vSin = MathF.Sin(value.Angle),
+            float rvCos = MathF.Cos(-value.Rotation),
+                rvSin = MathF.Sin(-value.Rotation),
+                vCos = MathF.Cos(value.Rotation),
+                vSin = MathF.Sin(value.Rotation),
                 vX = value.X,
                 vY = value.Y,
                 vMinX = value.X - value.Origin.X,
