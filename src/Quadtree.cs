@@ -120,64 +120,6 @@ namespace Dcrew.Spatial {
 
             public void Initialize() { }
             public void Update(GameTime gameTime) {
-                foreach (var n in _tree._nodesToClean)
-                    if (n.NW != null) {
-                        var count = 0;
-                        _tree._toProcess.Push(n.NE);
-                        _tree._toProcess.Push(n.SE);
-                        _tree._toProcess.Push(n.SW);
-                        _tree._toProcess.Push(n.NW);
-                        Node node;
-                        do {
-                            node = _tree._toProcess.Pop();
-                            count += node.ItemCount;
-                            if (count > Node.CAPACITY) {
-                                _tree._toProcess.Clear();
-                                break;
-                            }
-                            if (node.NW == null)
-                                continue;
-                            _tree._toProcess.Push(node.NE);
-                            _tree._toProcess.Push(node.SE);
-                            _tree._toProcess.Push(node.SW);
-                            _tree._toProcess.Push(node.NW);
-                        }
-                        while (_tree._toProcess.Count > 0);
-                        if (count > Node.CAPACITY)
-                            continue;
-                        _tree._toProcess.Push(n.NE);
-                        _tree._toProcess.Push(n.SE);
-                        _tree._toProcess.Push(n.SW);
-                        _tree._toProcess.Push(n.NW);
-                        n.NE = null;
-                        n.SE = null;
-                        n.SW = null;
-                        n.NW = null;
-                        do {
-                            node = _tree._toProcess.Pop();
-                            foreach (var i in node.Items) {
-                                n.Add(i);
-                                _tree._item[i] = (n, _tree._item[i].XY);
-                            }
-                            node.Clear();
-                            Pool<Node>.Free(node);
-                            if (node.NW == null)
-                                continue;
-                            _tree._toProcess.Push(node.NE);
-                            _tree._toProcess.Push(node.SE);
-                            _tree._toProcess.Push(node.SW);
-                            _tree._toProcess.Push(node.NW);
-                            node.NE = null;
-                            node.SE = null;
-                            node.SW = null;
-                            node.NW = null;
-                        }
-                        while (_tree._toProcess.Count > 0);
-                    }
-                _tree._nodesToClean.Clear();
-                foreach (var n in _tree._nodesToSubdivide)
-                    _tree.TrySubdivide(n);
-                _tree._nodesToSubdivide.Clear();
                 Node n3;
                 foreach (var n2 in _tree._nodesToRecountBounds) {
                     n3 = n2;
@@ -216,8 +158,7 @@ namespace Dcrew.Spatial {
                             if (nodeItems.Next == null)
                                 break;
                             nodeItems = nodeItems.Next;
-                        }
-                        while (true);
+                        } while (true);
                         bounds = new Rectangle(l, t, r - l, b - t);
                     }
                     if (n3.Parent != null && n3.Bounds != bounds) {
@@ -227,7 +168,65 @@ namespace Dcrew.Spatial {
                     }
                     n3.Bounds = bounds;
                 }
+                foreach (var n in _tree._nodesToSubdivide) {
+                    if (_tree.TrySubdivide(n))
+                        _tree._nodesToClean.Remove(n);
+                }
+                foreach (var n in _tree._nodesToClean)
+                    if (n.NW != null) {
+                        var count = 0;
+                        _tree._toProcess.Push(n.NE);
+                        _tree._toProcess.Push(n.SE);
+                        _tree._toProcess.Push(n.SW);
+                        _tree._toProcess.Push(n.NW);
+                        Node node;
+                        do {
+                            node = _tree._toProcess.Pop();
+                            count += node.ItemCount;
+                            if (count > Node.CAPACITY) {
+                                _tree._toProcess.Clear();
+                                break;
+                            }
+                            if (node.NW == null)
+                                continue;
+                            _tree._toProcess.Push(node.NE);
+                            _tree._toProcess.Push(node.SE);
+                            _tree._toProcess.Push(node.SW);
+                            _tree._toProcess.Push(node.NW);
+                        } while (_tree._toProcess.Count > 0);
+                        if (count > Node.CAPACITY)
+                            continue;
+                        _tree._toProcess.Push(n.NE);
+                        _tree._toProcess.Push(n.SE);
+                        _tree._toProcess.Push(n.SW);
+                        _tree._toProcess.Push(n.NW);
+                        n.NE = null;
+                        n.SE = null;
+                        n.SW = null;
+                        n.NW = null;
+                        do {
+                            node = _tree._toProcess.Pop();
+                            foreach (var i in node.Items) {
+                                n.Add(i);
+                                _tree._item[i] = (n, _tree._item[i].XY);
+                            }
+                            node.Clear();
+                            Pool<Node>.Free(node);
+                            if (node.NW == null)
+                                continue;
+                            _tree._toProcess.Push(node.NE);
+                            _tree._toProcess.Push(node.SE);
+                            _tree._toProcess.Push(node.SW);
+                            _tree._toProcess.Push(node.NW);
+                            node.NE = null;
+                            node.SE = null;
+                            node.SW = null;
+                            node.NW = null;
+                        } while (_tree._toProcess.Count > 0);
+                    }
                 _tree._nodesToRecountBounds.Clear();
+                _tree._nodesToSubdivide.Clear();
+                _tree._nodesToClean.Clear();
                 if (_tree._updates.HasFlag(Updates.AutoCleanNodes)) {
                     _game.Components.Remove(this);
                     _tree._updates &= ~Updates.AutoCleanNodes;
@@ -364,26 +363,6 @@ namespace Dcrew.Spatial {
                     }
                 }
                 while (_toProcess.Count > 0);
-            }
-        }
-        /// <summary>Return count of all nodes.</summary>
-        public int NodeCount {
-            get {
-                var count = 0;
-                _toProcess.Push(_root);
-                Node node;
-                do {
-                    node = _toProcess.Pop();
-                    count++;
-                    if (node.NW == null)
-                        continue;
-                    _toProcess.Push(node.NE);
-                    _toProcess.Push(node.SE);
-                    _toProcess.Push(node.SW);
-                    _toProcess.Push(node.NW);
-                }
-                while (_toProcess.Count > 0);
-                return count;
             }
         }
 
@@ -523,8 +502,7 @@ namespace Dcrew.Spatial {
                     node.SE = null;
                     node.SW = null;
                     node.NW = null;
-                }
-                while (_toProcess.Count > 0);
+                } while (_toProcess.Count > 0);
             }
             _root.Clear();
             _item.Clear();
@@ -641,7 +619,7 @@ namespace Dcrew.Spatial {
             } while (true);
         }
 
-        void TrySubdivide(Node n) {
+        bool TrySubdivide(Node n) {
             if (n.ItemCount > Node.CAPACITY && n.Depth < 6) {
                 var depth = (byte)(n.Depth + 1);
                 int halfWidth = _bounds.Width >> depth,
@@ -677,7 +655,9 @@ namespace Dcrew.Spatial {
                     nItems = nItems.Next;
                 } while (true);
                 n.Clear();
+                return true;
             }
+            return false;
         }
 
         bool TryExpandTree(Point xy) {
