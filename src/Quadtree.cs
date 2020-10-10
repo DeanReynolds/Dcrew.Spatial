@@ -161,17 +161,17 @@ namespace Dcrew.Spatial {
                         } while (true);
                         bounds = new Rectangle(l, t, r - l, b - t);
                     }
-                    if (n3.Parent != null && n3.Bounds != bounds) {
+                    if (n3.Bounds != bounds) {
                         n3.Bounds = bounds;
-                        n3 = n3.Parent;
-                        goto start;
+                        if (n3.Parent != null) {
+                            n3 = n3.Parent;
+                            goto start;
+                        }
                     }
-                    n3.Bounds = bounds;
                 }
-                foreach (var n in _tree._nodesToSubdivide) {
+                foreach (var n in _tree._nodesToSubdivide)
                     if (_tree.TrySubdivide(n))
                         _tree._nodesToClean.Remove(n);
-                }
                 foreach (var n in _tree._nodesToClean)
                     if (n.NW != null) {
                         var count = 0;
@@ -179,20 +179,20 @@ namespace Dcrew.Spatial {
                         _tree._toProcess.Push(n.SE);
                         _tree._toProcess.Push(n.SW);
                         _tree._toProcess.Push(n.NW);
-                        Node node;
+                        Node sn;
                         do {
-                            node = _tree._toProcess.Pop();
-                            count += node.ItemCount;
+                            sn = _tree._toProcess.Pop();
+                            count += sn.ItemCount;
                             if (count > Node.CAPACITY) {
                                 _tree._toProcess.Clear();
                                 break;
                             }
-                            if (node.NW == null)
+                            if (sn.NW == null)
                                 continue;
-                            _tree._toProcess.Push(node.NE);
-                            _tree._toProcess.Push(node.SE);
-                            _tree._toProcess.Push(node.SW);
-                            _tree._toProcess.Push(node.NW);
+                            _tree._toProcess.Push(sn.NE);
+                            _tree._toProcess.Push(sn.SE);
+                            _tree._toProcess.Push(sn.SW);
+                            _tree._toProcess.Push(sn.NW);
                         } while (_tree._toProcess.Count > 0);
                         if (count > Node.CAPACITY)
                             continue;
@@ -205,23 +205,24 @@ namespace Dcrew.Spatial {
                         n.SW = null;
                         n.NW = null;
                         do {
-                            node = _tree._toProcess.Pop();
-                            foreach (var i in node.Items) {
+                            sn = _tree._toProcess.Pop();
+                            foreach (var i in sn.Items) {
                                 n.Add(i);
                                 _tree._item[i] = (n, _tree._item[i].XY);
                             }
-                            node.Clear();
-                            Pool<Node>.Free(node);
-                            if (node.NW == null)
+                            sn.Clear();
+                            sn.Bounds = Rectangle.Empty;
+                            Pool<Node>.Free(sn);
+                            if (sn.NW == null)
                                 continue;
-                            _tree._toProcess.Push(node.NE);
-                            _tree._toProcess.Push(node.SE);
-                            _tree._toProcess.Push(node.SW);
-                            _tree._toProcess.Push(node.NW);
-                            node.NE = null;
-                            node.SE = null;
-                            node.SW = null;
-                            node.NW = null;
+                            _tree._toProcess.Push(sn.NE);
+                            _tree._toProcess.Push(sn.SE);
+                            _tree._toProcess.Push(sn.SW);
+                            _tree._toProcess.Push(sn.NW);
+                            sn.NE = null;
+                            sn.SE = null;
+                            sn.SW = null;
+                            sn.NW = null;
                         } while (_tree._toProcess.Count > 0);
                     }
                 _tree._nodesToRecountBounds.Clear();
@@ -279,21 +280,22 @@ namespace Dcrew.Spatial {
                     _root.SE = null;
                     _root.SW = null;
                     _root.NW = null;
-                    Node node;
+                    Node n;
                     do {
-                        node = _toProcess.Pop();
-                        node.Clear();
-                        Pool<Node>.Free(node);
-                        if (node.NW == null)
+                        n = _toProcess.Pop();
+                        n.Clear();
+                        n.Bounds = Rectangle.Empty;
+                        Pool<Node>.Free(n);
+                        if (n.NW == null)
                             continue;
-                        _toProcess.Push(node.NE);
-                        _toProcess.Push(node.SE);
-                        _toProcess.Push(node.SW);
-                        _toProcess.Push(node.NW);
-                        node.NE = null;
-                        node.SE = null;
-                        node.SW = null;
-                        node.NW = null;
+                        _toProcess.Push(n.NE);
+                        _toProcess.Push(n.SE);
+                        _toProcess.Push(n.SW);
+                        _toProcess.Push(n.NW);
+                        n.NE = null;
+                        n.SE = null;
+                        n.SW = null;
+                        n.NW = null;
                     }
                     while (_toProcess.Count > 0);
                 }
@@ -488,21 +490,22 @@ namespace Dcrew.Spatial {
                 _root.SE = null;
                 _root.SW = null;
                 _root.NW = null;
-                Node node;
+                Node n;
                 do {
-                    node = _toProcess.Pop();
-                    node.Clear();
-                    Pool<Node>.Free(node);
-                    if (node.NW == null)
+                    n = _toProcess.Pop();
+                    n.Clear();
+                    n.Bounds = Rectangle.Empty;
+                    Pool<Node>.Free(n);
+                    if (n.NW == null)
                         continue;
-                    _toProcess.Push(node.NE);
-                    _toProcess.Push(node.SE);
-                    _toProcess.Push(node.SW);
-                    _toProcess.Push(node.NW);
-                    node.NE = null;
-                    node.SE = null;
-                    node.SW = null;
-                    node.NW = null;
+                    _toProcess.Push(n.NE);
+                    _toProcess.Push(n.SE);
+                    _toProcess.Push(n.SW);
+                    _toProcess.Push(n.NW);
+                    n.NE = null;
+                    n.SE = null;
+                    n.SW = null;
+                    n.NW = null;
                 } while (_toProcess.Count > 0);
             }
             _root.Clear();
@@ -514,11 +517,11 @@ namespace Dcrew.Spatial {
         /// <summary>Find all items intersecting the given position.</summary>
         /// <param name="xy">Position.</param>
         /// <returns>Items that overlap the given position.</returns>
-        public ItemSet OverlapRect(Point xy) => Query<ItemSet>(new RotRect(new Vector2(xy.X, xy.Y), Vector2.One));
+        public ItemSet OverlapPoint(Point xy) => Query<ItemSet>(new RotRect(new Vector2(xy.X, xy.Y), Vector2.One));
         /// <summary>Find all items intersecting the given position.</summary>
         /// <param name="xy">Position.</param>
         /// <returns>Items that overlap the given position.</returns>
-        public ItemSet OverlapRect(Vector2 xy) => Query<ItemSet>(new RotRect(new Vector2((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y)), Vector2.One));
+        public ItemSet OverlapPoint(Vector2 xy) => Query<ItemSet>(new RotRect(new Vector2((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y)), Vector2.One));
         /// <summary>Find all items inside of the given rectangle.</summary>
         /// <param name="area">Area.</param>
         /// <param name="rotation">Rotation (in radians) of the rectangle.</param>
