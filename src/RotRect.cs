@@ -156,7 +156,7 @@ namespace Dcrew.Spatial {
         /// <summary>Gets whether or not the other <see cref="RotRect"/> intersects with this rectangle.</summary>
         /// <param name="value">The other rectangle for testing.</param>
         /// <returns><c>true</c> if other <see cref="RotRect"/> intersects with this rectangle; <c>false</c> otherwise.</returns>
-        public bool Intersects(RotRect value) => IntersectsAnyEdge(value)/* || value.IntersectsAnyEdge(this)*/;
+        public bool Intersects(RotRect value) => IntersectsAnyEdge(value) || value.IntersectsAnyEdge(this);
 
         /// <summary>Gets whether or not the provided <see cref="Vector2"/> lies within the bounds of this <see cref="RotRect"/>.</summary>
         /// <param name="value">The coordinates to check for inclusion in this <see cref="RotRect"/>.</param>
