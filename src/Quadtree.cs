@@ -437,6 +437,7 @@ namespace Dcrew.Spatial {
                 return true;
             }
             v.Node.Remove(item);
+            _nodesToRecountBounds.Add(v.Node);
             _nodesToClean.Add(v.Node.Parent);
             var n = v.Node;
             do {
@@ -698,14 +699,14 @@ namespace Dcrew.Spatial {
                 if (n.NW == null) {
                     if (n.ItemCount > 0) {
                         var nodeItems = n._firstItem;
-                        if (value.Contains(n.Bounds)) {
+                        if (value.Contains(n.Bounds))
                             do {
                                 items.Add(nodeItems.Item);
                                 if (nodeItems.Next == null)
                                     break;
                                 nodeItems = nodeItems.Next;
                             } while (true);
-                        } else {
+                        else
                             do {
                                 if (value.Intersects(nodeItems.Item.Bounds))
                                     items.Add(nodeItems.Item);
@@ -713,9 +714,8 @@ namespace Dcrew.Spatial {
                                     break;
                                 nodeItems = nodeItems.Next;
                             } while (true);
-                        }
                     }
-                } else if (value.Intersects(n.Bounds)) {
+                } else {
                     if (value.Intersects(n.NE.Bounds))
                         _toProcess.Push(n.NE);
                     if (value.Intersects(n.SE.Bounds))
@@ -748,7 +748,7 @@ namespace Dcrew.Spatial {
                             nodeItems = nodeItems.Next;
                         } while (true);
                     }
-                } else if (Vector2.DistanceSquared(xy, new RotRect(n.Bounds).ClosestPoint(xy)) <= rSqr) {
+                } else {
                     if (Vector2.DistanceSquared(xy, new RotRect(n.NE.Bounds).ClosestPoint(xy)) <= rSqr)
                         _toProcess.Push(n.NE);
                     if (Vector2.DistanceSquared(xy, new RotRect(n.SE.Bounds).ClosestPoint(xy)) <= rSqr)
