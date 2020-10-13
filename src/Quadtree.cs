@@ -93,35 +93,54 @@ namespace Dcrew.Spatial {
             }
         }
 
-        public class ItemSet : HashSet<T>, IDisposable {
+        public interface INodes {
+            public HashSet<Rectangle> Nodes => _nodes;
+
+            internal HashSet<Rectangle> _nodes { get; set; }
+        }
+
+        public class ItemSet : HashSet<T>, INodes, IDisposable {
+            public HashSet<Rectangle> Nodes => _nodes;
+
+            HashSet<Rectangle> _nodes { get; set; }
+            HashSet<Rectangle> INodes._nodes {
+                get => _nodes;
+                set => _nodes = value;
+            }
+
             public void Dispose() {
                 Clear();
+                _nodes.Clear();
+                Pool<HashSet<Rectangle>>.Free(_nodes);
                 Pool<ItemSet>.Free(this);
             }
         }
 
-        public class ItemList : List<T>, IDisposable {
+        public class ItemList : List<T>, INodes, IDisposable {
+            public HashSet<Rectangle> Nodes => _nodes;
+
+            HashSet<Rectangle> _nodes { get; set; }
+            HashSet<Rectangle> INodes._nodes {
+                get => _nodes;
+                set => _nodes = value;
+            }
+
             public void Dispose() {
                 Clear();
+                _nodes.Clear();
+                Pool<HashSet<Rectangle>>.Free(_nodes);
                 Pool<ItemList>.Free(this);
             }
         }
 
-        internal sealed class CleanNodes : IGameComponent, IUpdateable {
+        internal sealed class CleanNodes : GameComponent {
             readonly Quadtree<T> _tree;
 
-            public bool Enabled => true;
-            public int UpdateOrder => int.MaxValue;
+            internal CleanNodes(Game game, Quadtree<T> tree) : base(game) => _tree = tree;
 
-            public event EventHandler<EventArgs> EnabledChanged;
-            public event EventHandler<EventArgs> UpdateOrderChanged;
-
-            internal CleanNodes(Quadtree<T> tree) => _tree = tree;
-
-            public void Initialize() { }
-            public void Update(GameTime gameTime) {
+            public override void Update(GameTime gameTime) {
                 Node n3;
-                foreach (var n2 in _tree._nodesToRecountBounds) {
+                foreach (var n2 in _tree._nodesToGrow) {
                     n3 = n2;
                 start:;
                     var bounds = Rectangle.Empty;
@@ -225,7 +244,7 @@ namespace Dcrew.Spatial {
                             sn.NW = null;
                         } while (_tree._toProcess.Count > 0);
                     }
-                _tree._nodesToRecountBounds.Clear();
+                _tree._nodesToGrow.Clear();
                 _tree._nodesToSubdivide.Clear();
                 _tree._nodesToClean.Clear();
                 if (_tree._updates.HasFlag(Updates.AutoCleanNodes)) {
@@ -234,20 +253,12 @@ namespace Dcrew.Spatial {
                 }
             }
         }
-        internal sealed class ExpandTree : IGameComponent, IUpdateable {
+        internal sealed class ExpandTree : GameComponent {
             readonly Quadtree<T> _tree;
 
-            public bool Enabled => true;
+            internal ExpandTree(Game game, Quadtree<T> tree) : base(game) => _tree = tree;
 
-            public int UpdateOrder => int.MaxValue;
-
-            public event EventHandler<EventArgs> EnabledChanged;
-            public event EventHandler<EventArgs> UpdateOrderChanged;
-
-            internal ExpandTree(Quadtree<T> tree) => _tree = tree;
-
-            public void Initialize() { }
-            public void Update(GameTime gameTime) {
+            public override void Update(GameTime gameTime) {
                 int newLeft = Math.Min(_tree.Bounds.Left, _tree._extendToW),
                     newTop = Math.Min(_tree.Bounds.Top, _tree._extendToN),
                     newWidth = _tree.Bounds.Right - newLeft,
@@ -315,7 +326,7 @@ namespace Dcrew.Spatial {
                 Pool<Node>.EnsureCount(r);
                 _nodesToClean.Clear();
                 _nodesToSubdivide.Clear();
-                _nodesToRecountBounds.Clear();
+                _nodesToGrow.Clear();
                 foreach (var i in _safeItem._set) {
                     var aabb = i.Bounds.AABB;
                     var n = Insert(i, _root, aabb.Center);
@@ -348,25 +359,6 @@ namespace Dcrew.Spatial {
                     yield return (i.Key, i.Value.Node.Bounds);
             }
         }
-        /// <summary>Return all node bounds in this tree.</summary>
-        public IEnumerable<Rectangle> Nodes {
-            get {
-                _toProcess.Push(_root);
-                Node n;
-                do {
-                    n = _toProcess.Pop();
-                    var bounds = n.Bounds;
-                    yield return bounds;
-                    if (n.NW != null) {
-                        _toProcess.Push(n.NE);
-                        _toProcess.Push(n.SE);
-                        _toProcess.Push(n.SW);
-                        _toProcess.Push(n.NW);
-                    }
-                }
-                while (_toProcess.Count > 0);
-            }
-        }
 
         internal readonly Node _root;
         internal readonly Dictionary<T, (Node Node, Point XY)> _item = new Dictionary<T, (Node, Point)>();
@@ -382,7 +374,7 @@ namespace Dcrew.Spatial {
 
         readonly HashSet<Node> _nodesToClean = new HashSet<Node>(),
             _nodesToSubdivide = new HashSet<Node>(),
-            _nodesToRecountBounds = new HashSet<Node>();
+            _nodesToGrow = new HashSet<Node>();
         readonly CleanNodes _cleanNodes;
         readonly ExpandTree _expandTree;
 
@@ -391,8 +383,8 @@ namespace Dcrew.Spatial {
         /// <summary>Construct an empty quadtree with no bounds (will auto expand).</summary>
         public Quadtree() {
             _root = new Node();
-            _cleanNodes = new CleanNodes(this);
-            _expandTree = new ExpandTree(this);
+            _cleanNodes = new CleanNodes(_game, this);
+            _expandTree = new ExpandTree(_game, this);
         }
 
         /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE.</summary>
@@ -409,7 +401,7 @@ namespace Dcrew.Spatial {
             _item.Add(item, (n, xy));
             if (n.ItemCount > Node.CAPACITY && n.Depth < 6)
                 _nodesToSubdivide.Add(n);
-            _nodesToRecountBounds.Add(n);
+            _nodesToGrow.Add(n);
             QueueClean();
         }
         /// <summary>Updates the given item from the tree if it exists.</summary>
@@ -424,7 +416,7 @@ namespace Dcrew.Spatial {
                 _item[item] = (v.Node, xy);
                 if (_root.ItemCount > Node.CAPACITY && _root.Depth < 6)
                     _nodesToSubdivide.Add(_root);
-                _nodesToRecountBounds.Add(_root);
+                _nodesToGrow.Add(_root);
                 QueueClean();
                 return true;
             }
@@ -434,12 +426,12 @@ namespace Dcrew.Spatial {
             if (bounds.Contains(xy)) {
                 //if (Math.Sign(xy.X - v.Node.Parent.cX) == Math.Sign(v.XY.X - v.Node.Parent.cX) && Math.Sign(xy.Y - v.Node.Parent.cY) == Math.Sign(v.XY.Y - v.Node.Parent.cY)) {
                 _item[item] = (v.Node, xy);
-                _nodesToRecountBounds.Add(v.Node);
+                _nodesToGrow.Add(v.Node);
                 QueueClean();
                 return true;
             }
             v.Node.Remove(item);
-            _nodesToRecountBounds.Add(v.Node);
+            _nodesToGrow.Add(v.Node);
             _nodesToClean.Add(v.Node.Parent);
             var n = v.Node;
             do {
@@ -460,7 +452,7 @@ namespace Dcrew.Spatial {
             _item[item] = (n2, xy);
             if (n2.ItemCount > Node.CAPACITY && n2.Depth < 6)
                 _nodesToSubdivide.Add(n2);
-            _nodesToRecountBounds.Add(n2);
+            _nodesToGrow.Add(n2);
             QueueClean();
             return true;
         }
@@ -694,13 +686,14 @@ namespace Dcrew.Spatial {
             }
         }
 
-        TCollection Query<TCollection>(RotRect value) where TCollection : class, ICollection<T>, new() {
+        TCollection Query<TCollection>(RotRect value) where TCollection : class, ICollection<T>, INodes, new() {
             var items = Pool<TCollection>.Spawn();
-            items.Clear();
+            items._nodes = Pool<HashSet<Rectangle>>.Spawn();
             var n = _root;
             do {
                 if (n.NW == null) {
                     if (n.ItemCount > 0) {
+                        items._nodes.Add(n.Bounds);
                         var nodeItems = n._firstItem;
                         if (value.Contains(n.Bounds))
                             do {
@@ -734,12 +727,13 @@ namespace Dcrew.Spatial {
             } while (true);
             return items;
         }
-        TCollection Query<TCollection>(Vector2 xy, float radius) where TCollection : class, ICollection<T>, new() {
+        TCollection Query<TCollection>(Vector2 xy, float radius) where TCollection : class, ICollection<T>, INodes, new() {
             var rSqr = radius * radius;
             var items = Pool<TCollection>.Spawn();
-            items.Clear();
+            items._nodes = Pool<HashSet<Rectangle>>.Spawn();
             var n = _root;
             do {
+                items._nodes.Add(n.Bounds);
                 if (n.NW == null) {
                     if (n.ItemCount > 0) {
                         var nodeItems = n._firstItem;
