@@ -20,22 +20,6 @@ namespace Dcrew.Spatial {
             internal byte Depth;
             internal Rectangle Bounds;
 
-            internal IEnumerable<T> Items {
-                get {
-                    if (ItemCount > 0) {
-                        var nodeItems = _firstItem;
-                        do {
-                            yield return nodeItems.Item;
-                            if (nodeItems.Next == null)
-                                break;
-                            nodeItems = nodeItems.Next;
-                        }
-                        while (true);
-                    }
-                    yield break;
-                }
-            }
-
             internal FItem _firstItem;
 
             internal void Add(T i) {
@@ -225,12 +209,18 @@ namespace Dcrew.Spatial {
                         n.NW = null;
                         do {
                             sn = _tree._toProcess.Pop();
-                            foreach (var i in sn.Items) {
-                                n.Add(i);
-                                _tree._item[i] = (n, _tree._item[i].XY);
+                            if (sn.ItemCount > 0) {
+                                var nodeItems = sn._firstItem;
+                                do {
+                                    n.Add(nodeItems.Item);
+                                    _tree._item[nodeItems.Item] = (n, _tree._item[nodeItems.Item].XY);
+                                    if (nodeItems.Next == null)
+                                        break;
+                                    nodeItems = nodeItems.Next;
+                                } while (true);
+                                sn.Clear();
+                                sn.Bounds = Rectangle.Empty;
                             }
-                            sn.Clear();
-                            sn.Bounds = Rectangle.Empty;
                             Pool<Node>.Free(sn);
                             if (sn.NW == null)
                                 continue;
