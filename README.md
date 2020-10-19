@@ -89,7 +89,7 @@ using (var query = tree.QueryRadius(xy: new Point(3, 4), radius: 10)) {
   // ...
  }
 }
-using (var query = tree.LineCast(start: new Vector2(3, 4), end: new Vector2(8, 12), thickness: 3)) {
+using (var query = tree.Linecast(start: new Vector2(3, 4), end: new Vector2(8, 12), thickness: 3)) {
  foreach (var item in query) {
   // ...
  }
