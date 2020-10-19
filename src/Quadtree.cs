@@ -499,32 +499,32 @@ namespace Dcrew.Spatial {
         /// <summary>Find all items intersecting the given position.</summary>
         /// <param name="xy">Position.</param>
         /// <returns>Items that overlap the given position.</returns>
-        public ItemSet OverlapPoint(Point xy) => Query<ItemSet>(new RotRect(new Vector2(xy.X, xy.Y), Vector2.One));
+        public ItemSet QueryPoint(Point xy) => Query<ItemSet>(new RotRect(new Vector2(xy.X, xy.Y), Vector2.One));
         /// <summary>Find all items intersecting the given position.</summary>
         /// <param name="xy">Position.</param>
         /// <returns>Items that overlap the given position.</returns>
-        public ItemSet OverlapPoint(Vector2 xy) => Query<ItemSet>(new RotRect(new Vector2((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y)), Vector2.One));
+        public ItemSet QueryPoint(Vector2 xy) => Query<ItemSet>(new RotRect(new Vector2((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y)), Vector2.One));
         /// <summary>Find all items inside of the given rectangle.</summary>
         /// <param name="area">Area.</param>
         /// <param name="rotation">Rotation (in radians) of the rectangle.</param>
         /// <param name="origin">Origin of rectangle.</param>
         /// <returns>Items that overlap the given rectangle.</returns>
-        public ItemSet OverlapRect(Rectangle area, float rotation = 0, Vector2 origin = default) => Query<ItemSet>(new RotRect(area.Location.ToVector2(), area.Size.ToVector2(), rotation, origin));
+        public ItemSet QueryRect(Rectangle area, float rotation = 0, Vector2 origin = default) => Query<ItemSet>(new RotRect(area.Location.ToVector2(), area.Size.ToVector2(), rotation, origin));
         /// <summary>Find all items inside of the given rectangle.</summary>
         /// <param name="xy">Position of the rectangle.</param>
         /// <param name="size">Size of the rectangle.</param>
         /// <param name="rotation">Rotation (in radians) of the rectangle.</param>
         /// <param name="origin">Origin of the rectangle.</param>
         /// <returns>Items that overlap the given rectangle.</returns>
-        public ItemSet OverlapRect(Vector2 xy, Vector2 size, float rotation = default, Vector2 origin = default) => Query<ItemSet>(new RotRect(xy, size, rotation, origin));
+        public ItemSet QueryRect(Vector2 xy, Vector2 size, float rotation = default, Vector2 origin = default) => Query<ItemSet>(new RotRect(xy, size, rotation, origin));
         /// <summary>Find all items inside of the given rectangle.</summary>
         /// <returns>Items that overlap the given rectangle.</returns>
-        public ItemSet OverlapRect(RotRect value) => Query<ItemSet>(value);
+        public ItemSet QueryRect(RotRect value) => Query<ItemSet>(value);
         /// <summary>Find all items within the radius of the given position.</summary>
         /// <param name="xy">Position.</param>
         /// <param name="radius">Radius.</param>
         /// <returns>Items that are within <paramref name="radius"/> of <paramref name="xy"/>.</returns>
-        public ItemSet OverlapRadius(Vector2 xy, float radius) => Query<ItemSet>(xy, radius);
+        public ItemSet QueryRadius(Vector2 xy, float radius) => Query<ItemSet>(xy, radius);
         /// <summary>Find all items intersecting the given line, ordered closest to <paramref name="start"/> first.</summary>
         /// <param name="start">Start point.</param>
         /// <param name="end">End point.</param>
