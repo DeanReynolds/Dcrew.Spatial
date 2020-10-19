@@ -64,17 +64,45 @@ tree.Add(itemB);
 
 4. Query an area(s)
 ```cs
-foreach (var item in tree.Query(new Point(3, 4)) {
- // ...
+using (var query = tree.OverlapPoint(xy: new Point(3, 4))) {
+ foreach (var item in query) {
+  // ...
+ }
 }
-foreach (var item in tree.Query(new Vector2(32.5f, 25)) {
- // ...
+using (var query = tree.OverlapPoint(xy: new Vector2(32.5f, 25))) {
+ foreach (var item in query) {
+  // ...
+ }
 }
-foreach (var item in tree.Query(new Rectangle(x: 7, y: 2, width: 32, height: 27)) {
- // ...
+using (var query = tree.OverlapRect(area: new Rectangle(x: 7, y: 2, width: 32, height: 27), rotation: 0, origin: Vector2.Zero)) {
+ foreach (var item in query) {
+  // ...
+ }
 }
-foreach (var item in tree.Query(new RotRect(x: 7, y: 2, width: 32, height: 27, angle: 0, origin: Vector2.Zero)) {
- // ...
+using (var query = tree.OverlapRect(new RotRect(x: 7, y: 2, width: 32, height: 27, angle: 0, origin: Vector2.Zero))) {
+ foreach (var item in query) {
+  // ...
+ }
+}
+using (var query = tree.OverlapRadius(xy: new Point(3, 4), radius: 10)) {
+ foreach (var item in query) {
+  // ...
+ }
+}
+using (var query = tree.LineCast(start: new Vector2(3, 4), end: new Vector2(8, 12), thickness: 3)) {
+ foreach (var item in query) {
+  // ...
+ }
+}
+using (var query = tree.ORaycast(start: new Vector2(3, 4), direction: new Vector2(.5f, .75f), thickness: 3)) {
+ foreach (var item in query) {
+  // ...
+ }
+}
+using (var query = tree.Raycast(start: new Vector2(3, 4), rotation: MathF.PI, thickness: 3)) {
+ foreach (var item in query) {
+  // ...
+ }
 }
 ```
 
