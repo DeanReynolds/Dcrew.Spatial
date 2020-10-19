@@ -64,16 +64,16 @@ tree.Add(itemB);
 
 4. Query an area(s)
 ```cs
-foreach (var item in tree.Query(new Point(3, 4)) {
+foreach (var item in tree.OverlapPoint(new Point(3, 4)) {
  // ...
 }
-foreach (var item in tree.Query(new Vector2(32.5f, 25)) {
+foreach (var item in tree.OverlapPoint(new Vector2(32.5f, 25)) {
  // ...
 }
-foreach (var item in tree.Query(new Rectangle(x: 7, y: 2, width: 32, height: 27)) {
+foreach (var item in tree.OverlapRect(new Rectangle(x: 7, y: 2, width: 32, height: 27)) {
  // ...
 }
-foreach (var item in tree.Query(new RotRect(x: 7, y: 2, width: 32, height: 27, angle: 0, origin: Vector2.Zero)) {
+foreach (var item in tree.OverlapRect(new RotRect(x: 7, y: 2, width: 32, height: 27, angle: 0, origin: Vector2.Zero)) {
  // ...
 }
 ```
