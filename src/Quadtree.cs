@@ -530,7 +530,7 @@ namespace Dcrew.Spatial {
         /// <param name="end">End point.</param>
         /// <param name="thickness">Thickness (width) of line.</param>
         /// <returns>Items that intersect the given line.</returns>
-        public ItemList LineCast(Vector2 start, Vector2 end, float thickness = 1) {
+        public ItemList Linecast(Vector2 start, Vector2 end, float thickness = 1) {
             var items = Query<ItemList>(new RotRect(start, new Vector2(MathF.Sqrt(Vector2.DistanceSquared(start, end)), thickness), MathF.Atan2(end.Y - start.Y, end.X - start.X), new Vector2(0, thickness / 2)));
             items.Sort((T x, T y) => Vector2.DistanceSquared(start, x.Bounds.XY) < Vector2.DistanceSquared(start, x.Bounds.XY) ? -1 : 0);
             return items;
