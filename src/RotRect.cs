@@ -349,7 +349,7 @@ namespace Dcrew.Spatial {
                tr = new Vector2(wcos - ysin + XY.X, wsin + ycos + XY.Y),
                br = new Vector2(wcos - hsin + XY.X, wsin + hcos + XY.Y),
                bl = new Vector2(xcos - hsin + XY.X, xsin + hcos + XY.Y),
-               center = new Vector2((tl.X + tr.X + br.X + bl.X) / 4, (tl.Y + tr.Y + br.Y + bl.Y) / 4);
+               center = new Vector2((((xcos - ysin) + (wcos - ysin) + (wcos - hsin) + (xcos - hsin)) / 4) + XY.X, (((xsin + ycos) + (wsin + ycos) + (wsin + hcos) + (xsin + hcos)) / 4) + XY.Y);
             float rvCos = MathF.Cos(-value.Rotation),
                 rvSin = MathF.Sin(-value.Rotation),
                 vCos = MathF.Cos(value.Rotation),
