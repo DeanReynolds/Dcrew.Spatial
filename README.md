@@ -24,9 +24,9 @@ class Item : IBounds {
   get => _bounds.Size;
   set => _bounds.Size = value;
  }
- public float Angle { // Rotation (in radians)
-  get => _bounds.Angle;
-  set => _bounds.Angle = value;
+ public float Rotation { // Rotation (in radians)
+  get => _bounds.Rotation;
+  set => _bounds.Rotation = value;
  }
  public Vector2 Origin { // Origin
   get => _bounds.Origin;
@@ -79,7 +79,7 @@ using (var query = tree.QueryRect(area: new Rectangle(x: 7, y: 2, width: 32, hei
   // ...
  }
 }
-using (var query = tree.QueryRect(new RotRect(x: 7, y: 2, width: 32, height: 27, angle: 0, origin: Vector2.Zero))) {
+using (var query = tree.QueryRect(new RotRect(x: 7, y: 2, width: 32, height: 27, rotation: 0, origin: Vector2.Zero))) {
  foreach (var item in query) {
   // ...
  }
