@@ -404,7 +404,7 @@ namespace Dcrew.Spatial {
                 return false;
             if (v.Node == _root) {
                 _item[item] = (v.Node, xy);
-                if (_root.ItemCount > NodesCapacity && _root.Depth < MaxDepth)
+                if (_root.ItemCount > NodesCapacity)
                     _nodesToSubdivide.Add(_root);
                 _nodesToGrow.Add(_root);
                 QueueClean();
