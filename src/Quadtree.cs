@@ -266,7 +266,7 @@ namespace Dcrew.Spatial {
         }
 
         internal const int MIN_SIZE = 4,
-            MAX_DEPTH = 8;
+            MAX_DEPTH = 6;
 
         /// <summary>Set the boundary rect of this tree.</summary>
         public Rectangle Bounds {
@@ -321,7 +321,7 @@ namespace Dcrew.Spatial {
                     var aabb = i.Bounds.AABB;
                     var n = Insert(i, _root, aabb.Center);
                     _item[i] = (n, aabb.Center);
-                    if (n.ItemCount > Node.CAPACITY && n.Depth < 6)
+                    if (n.ItemCount > Node.CAPACITY && n.Depth < MAX_DEPTH)
                         _nodesToSubdivide.Add(n);
                 }
                 QueueClean();
@@ -389,7 +389,7 @@ namespace Dcrew.Spatial {
                 return;
             var n = Insert(item, _root, xy);
             _item.Add(item, (n, xy));
-            if (n.ItemCount > Node.CAPACITY && n.Depth < 6)
+            if (n.ItemCount > Node.CAPACITY && n.Depth < MAX_DEPTH)
                 _nodesToSubdivide.Add(n);
             _nodesToGrow.Add(n);
             QueueClean();
@@ -404,7 +404,7 @@ namespace Dcrew.Spatial {
                 return false;
             if (v.Node == _root) {
                 _item[item] = (v.Node, xy);
-                if (_root.ItemCount > Node.CAPACITY && _root.Depth < 6)
+                if (_root.ItemCount > Node.CAPACITY && _root.Depth < MAX_DEPTH)
                     _nodesToSubdivide.Add(_root);
                 _nodesToGrow.Add(_root);
                 QueueClean();
@@ -440,7 +440,7 @@ namespace Dcrew.Spatial {
             while (true);
             var n2 = Insert(item, n, xy);
             _item[item] = (n2, xy);
-            if (n2.ItemCount > Node.CAPACITY && n2.Depth < 6)
+            if (n2.ItemCount > Node.CAPACITY && n2.Depth < MAX_DEPTH)
                 _nodesToSubdivide.Add(n2);
             _nodesToGrow.Add(n2);
             QueueClean();
@@ -606,7 +606,7 @@ namespace Dcrew.Spatial {
         }
 
         bool TrySubdivide(Node n) {
-            if (n.ItemCount > Node.CAPACITY && n.Depth < 6) {
+            if (n.ItemCount > Node.CAPACITY && n.Depth < MAX_DEPTH) {
                 var depth = (byte)(n.Depth + 1);
                 int halfWidth = _bounds.Width >> depth,
                     halfHeight = _bounds.Height >> depth;
