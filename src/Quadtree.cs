@@ -7,6 +7,8 @@ using System.Reflection;
 namespace Dcrew.Spatial {
     /// <summary>For fast and accurate spatial partitioning. Set <see cref="Bounds"/> before use.</summary>
     public sealed class Quadtree<T> : IEnumerable<T> where T : class, IBounds {
+        public byte MaxDepth { get; set; } = 6;
+
         internal sealed class Node {
             internal sealed class FItem {
                 internal T Item;
@@ -265,8 +267,7 @@ namespace Dcrew.Spatial {
             }
         }
 
-        internal const int MIN_SIZE = 4,
-            MAX_DEPTH = 6;
+        internal const int MIN_SIZE = 4;
 
         /// <summary>Set the boundary rect of this tree.</summary>
         public Rectangle Bounds {
@@ -321,7 +322,7 @@ namespace Dcrew.Spatial {
                     var aabb = i.Bounds.AABB;
                     var n = Insert(i, _root, aabb.Center);
                     _item[i] = (n, aabb.Center);
-                    if (n.ItemCount > Node.CAPACITY && n.Depth < MAX_DEPTH)
+                    if (n.ItemCount > Node.CAPACITY && n.Depth < MaxDepth)
                         _nodesToSubdivide.Add(n);
                 }
                 QueueClean();
@@ -389,7 +390,7 @@ namespace Dcrew.Spatial {
                 return;
             var n = Insert(item, _root, xy);
             _item.Add(item, (n, xy));
-            if (n.ItemCount > Node.CAPACITY && n.Depth < MAX_DEPTH)
+            if (n.ItemCount > Node.CAPACITY && n.Depth < MaxDepth)
                 _nodesToSubdivide.Add(n);
             _nodesToGrow.Add(n);
             QueueClean();
@@ -404,7 +405,7 @@ namespace Dcrew.Spatial {
                 return false;
             if (v.Node == _root) {
                 _item[item] = (v.Node, xy);
-                if (_root.ItemCount > Node.CAPACITY && _root.Depth < MAX_DEPTH)
+                if (_root.ItemCount > Node.CAPACITY && _root.Depth < MaxDepth)
                     _nodesToSubdivide.Add(_root);
                 _nodesToGrow.Add(_root);
                 QueueClean();
@@ -440,7 +441,7 @@ namespace Dcrew.Spatial {
             while (true);
             var n2 = Insert(item, n, xy);
             _item[item] = (n2, xy);
-            if (n2.ItemCount > Node.CAPACITY && n2.Depth < MAX_DEPTH)
+            if (n2.ItemCount > Node.CAPACITY && n2.Depth < MaxDepth)
                 _nodesToSubdivide.Add(n2);
             _nodesToGrow.Add(n2);
             QueueClean();
@@ -606,7 +607,7 @@ namespace Dcrew.Spatial {
         }
 
         bool TrySubdivide(Node n) {
-            if (n.ItemCount > Node.CAPACITY && n.Depth < MAX_DEPTH) {
+            if (n.ItemCount > Node.CAPACITY && n.Depth < MaxDepth) {
                 var depth = (byte)(n.Depth + 1);
                 int halfWidth = _bounds.Width >> depth,
                     halfHeight = _bounds.Height >> depth;
