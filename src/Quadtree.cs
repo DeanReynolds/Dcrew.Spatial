@@ -1,757 +1,552 @@
 ﻿using Microsoft.Xna.Framework;
 using System;
+using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 
 namespace Dcrew.Spatial {
-    /// <summary>For fast and accurate spatial partitioning. Set <see cref="Bounds"/> before use.</summary>
-    public sealed class Quadtree<T> : IEnumerable<T> where T : class, IBounds {
-        public byte MaxDepth { get; set; } = 6;
-        public int NodesCapacity { get; set; } = 16;
+    public struct Quadtree {
+        struct Node {
+            public float X, Y, Width, Height;
+            public readonly float CenterX, CenterY;
+            public int Child;
+            public readonly byte Depth;
 
-        internal sealed class Node {
-            internal sealed class FItem {
-                internal T Item;
-                internal FItem Next;
-            }
-
-            internal Node Parent, NE, SE, SW, NW;
-            internal int ItemCount, cX, cY;
-            internal byte Depth;
-            internal Rectangle Bounds;
-
-            internal FItem _firstItem;
-
-            internal void Add(T i) {
-                if (ItemCount > 0) {
-                    var nodeItems = _firstItem;
-                    for (var j = 1; j < ItemCount; j++)
-                        nodeItems = nodeItems.Next;
-                    nodeItems.Next = Pool<FItem>.Spawn();
-                    nodeItems.Next.Item = i;
-                } else {
-                    _firstItem = Pool<FItem>.Spawn();
-                    _firstItem.Item = i;
-                }
-                ItemCount++;
-            }
-            internal void Remove(T i) {
-                FItem prev = null;
-                var nodeItems = _firstItem;
-                while (nodeItems.Item != i) {
-                    prev = nodeItems;
-                    nodeItems = nodeItems.Next;
-                }
-                if (prev != null) {
-                    prev.Next = nodeItems.Next;
-                    nodeItems.Item = null;
-                    nodeItems.Next = null;
-                    Pool<FItem>.Free(nodeItems);
-                } else {
-                    var next = _firstItem.Next;
-                    _firstItem.Item = null;
-                    _firstItem.Next = null;
-                    Pool<FItem>.Free(_firstItem);
-                    _firstItem = next;
-                }
-                ItemCount--;
-            }
-            internal void Clear() {
-                if (ItemCount > 0) {
-                    var nodeItems = _firstItem;
-                    var next = nodeItems.Next;
-                    nodeItems.Item = null;
-                    nodeItems.Next = null;
-                    Pool<FItem>.Free(nodeItems);
-                    _firstItem = null;
-                    nodeItems = next;
-                    while (nodeItems != null) {
-                        next = nodeItems.Next;
-                        nodeItems.Item = null;
-                        nodeItems.Next = null;
-                        Pool<FItem>.Free(nodeItems);
-                        nodeItems = next;
-                    }
-                    ItemCount = 0;
-                }
+            public Node(float x, float y, byte depth) {
+                X = 0;
+                Y = 0;
+                Width = 0;
+                Height = 0;
+                CenterX = x;
+                CenterY = y;
+                Child = 0;
+                Depth = depth;
             }
         }
 
-        public interface INodes {
-            public HashSet<Rectangle> Nodes => _nodes;
-
-            internal HashSet<Rectangle> _nodes { get; set; }
+        struct TreeItem {
+            public float X, Y, Width, Height;
+            public int Next;
         }
 
-        public class ItemSet : HashSet<T>, INodes, IDisposable {
-            public HashSet<Rectangle> Nodes => _nodes;
+        /// <summary>A collection of int ids.</summary>
+        public struct Yield : IEnumerator<int>, IEnumerable<int>, IDisposable {
+            internal int[] _items;
+            int _cur;
 
-            HashSet<Rectangle> _nodes { get; set; }
-            HashSet<Rectangle> INodes._nodes {
-                get => _nodes;
-                set => _nodes = value;
+            public int Count { get; internal set; }
+
+            public int Current => _items[_cur];
+            object IEnumerator.Current => _items[_cur];
+
+            public Yield(int count) {
+                _items = ArrayPool<int>.Shared.Rent(count);
+                Count = 0;
+                _cur = -1;
             }
 
-            public void Dispose() {
-                Clear();
-                _nodes.Clear();
-                Pool<HashSet<Rectangle>>.Free(_nodes);
-                Pool<ItemSet>.Free(this);
-            }
+            public void Dispose() { ArrayPool<int>.Shared.Return(_items); }
+
+            public bool MoveNext() { return ++_cur < Count; }
+            public void Reset() { _cur = -1; }
+
+            public Yield GetEnumerator() { return this; }
+            IEnumerator<int> IEnumerable<int>.GetEnumerator() { return this; }
+            IEnumerator IEnumerable.GetEnumerator() { return this; }
         }
 
-        public class ItemList : List<T>, INodes, IDisposable {
-            public HashSet<Rectangle> Nodes => _nodes;
+        float _x, _y, _width, _height;
+        readonly byte _maxDepth;
+        Node[] _node;
+        int _freeNode;
+        TreeItem[] _item;
+        readonly Stack<int> _toProcess;
+        float _newX, _newY, _newWidth, _newHeight;
 
-            HashSet<Rectangle> _nodes { get; set; }
-            HashSet<Rectangle> INodes._nodes {
-                get => _nodes;
-                set => _nodes = value;
-            }
-
-            public void Dispose() {
-                Clear();
-                _nodes.Clear();
-                Pool<HashSet<Rectangle>>.Free(_nodes);
-                Pool<ItemList>.Free(this);
-            }
-        }
-
-        internal sealed class CleanNodes : GameComponent {
-            readonly Quadtree<T> _tree;
-
-            internal CleanNodes(Game game, Quadtree<T> tree) : base(game) => _tree = tree;
-
-            public override void Update(GameTime gameTime) {
-                Node n3;
-                foreach (var n2 in _tree._nodesToGrow) {
-                    n3 = n2;
-                start:;
-                    var bounds = Rectangle.Empty;
-                    if (n3.NW != null) {
-                        if (n3.NW.Bounds.Width != 0)
-                            bounds = n3.NW.Bounds;
-                        if (n3.NE.Bounds.Width != 0)
-                            bounds = bounds.Width == 0 ? n3.NE.Bounds : Rectangle.Union(bounds, n3.NE.Bounds);
-                        if (n3.SE.Bounds.Width != 0)
-                            bounds = bounds.Width == 0 ? n3.SE.Bounds : Rectangle.Union(bounds, n3.SE.Bounds);
-                        if (n3.SW.Bounds.Width != 0)
-                            bounds = bounds.Width == 0 ? n3.SW.Bounds : Rectangle.Union(bounds, n3.SW.Bounds);
-                        if (bounds != n3.Bounds) {
-                            n3.Bounds = bounds;
-                            if (n3.Parent != null) {
-                                n3 = n3.Parent;
-                                goto start;
-                            }
-                            continue;
-                        }
-                    }
-                    if (n3.ItemCount > 0) {
-                        int l = int.MaxValue,
-                            r = int.MinValue,
-                            t = int.MaxValue,
-                            b = int.MinValue;
-                        var nodeItems = n3._firstItem;
-                        do {
-                            var bs = nodeItems.Item.Bounds.AABB;
-                            l = l <= bs.Left ? l : bs.Left;
-                            r = r >= bs.Right ? r : bs.Right;
-                            t = t <= bs.Top ? t : bs.Top;
-                            b = b >= bs.Bottom ? b : bs.Bottom;
-                            if (nodeItems.Next == null)
-                                break;
-                            nodeItems = nodeItems.Next;
-                        } while (true);
-                        bounds = new Rectangle(l, t, r - l, b - t);
-                    }
-                    if (n3.Bounds != bounds) {
-                        n3.Bounds = bounds;
-                        if (n3.Parent != null) {
-                            n3 = n3.Parent;
-                            goto start;
-                        }
-                    }
-                }
-                foreach (var n in _tree._nodesToSubdivide)
-                    if (_tree.TrySubdivide(n))
-                        _tree._nodesToClean.Remove(n);
-                foreach (var n in _tree._nodesToClean)
-                    if (n.NW != null) {
-                        var count = 0;
-                        _tree._toProcess.Push(n.NE);
-                        _tree._toProcess.Push(n.SE);
-                        _tree._toProcess.Push(n.SW);
-                        _tree._toProcess.Push(n.NW);
-                        Node sn;
-                        do {
-                            sn = _tree._toProcess.Pop();
-                            count += sn.ItemCount;
-                            if (count > _tree.NodesCapacity) {
-                                _tree._toProcess.Clear();
-                                break;
-                            }
-                            if (sn.NW == null)
-                                continue;
-                            _tree._toProcess.Push(sn.NE);
-                            _tree._toProcess.Push(sn.SE);
-                            _tree._toProcess.Push(sn.SW);
-                            _tree._toProcess.Push(sn.NW);
-                        } while (_tree._toProcess.Count > 0);
-                        if (count > _tree.NodesCapacity)
-                            continue;
-                        _tree._toProcess.Push(n.NE);
-                        _tree._toProcess.Push(n.SE);
-                        _tree._toProcess.Push(n.SW);
-                        _tree._toProcess.Push(n.NW);
-                        n.NE = null;
-                        n.SE = null;
-                        n.SW = null;
-                        n.NW = null;
-                        do {
-                            sn = _tree._toProcess.Pop();
-                            if (sn.ItemCount > 0) {
-                                var nodeItems = sn._firstItem;
-                                do {
-                                    n.Add(nodeItems.Item);
-                                    _tree._item[nodeItems.Item] = (n, _tree._item[nodeItems.Item].XY);
-                                    if (nodeItems.Next == null)
-                                        break;
-                                    nodeItems = nodeItems.Next;
-                                } while (true);
-                                sn.Clear();
-                                sn.Bounds = Rectangle.Empty;
-                            }
-                            Pool<Node>.Free(sn);
-                            if (sn.NW == null)
-                                continue;
-                            _tree._toProcess.Push(sn.NE);
-                            _tree._toProcess.Push(sn.SE);
-                            _tree._toProcess.Push(sn.SW);
-                            _tree._toProcess.Push(sn.NW);
-                            sn.NE = null;
-                            sn.SE = null;
-                            sn.SW = null;
-                            sn.NW = null;
-                        } while (_tree._toProcess.Count > 0);
-                    }
-                _tree._nodesToGrow.Clear();
-                _tree._nodesToSubdivide.Clear();
-                _tree._nodesToClean.Clear();
-                if (_tree._updates.HasFlag(Updates.AutoCleanNodes)) {
-                    _game.Components.Remove(this);
-                    _tree._updates &= ~Updates.AutoCleanNodes;
-                }
-            }
-        }
-        internal sealed class ExpandTree : GameComponent {
-            readonly Quadtree<T> _tree;
-
-            internal ExpandTree(Game game, Quadtree<T> tree) : base(game) => _tree = tree;
-
-            public override void Update(GameTime gameTime) {
-                int newLeft = Math.Min(_tree.Bounds.Left, _tree._extendToW),
-                    newTop = Math.Min(_tree.Bounds.Top, _tree._extendToN),
-                    newWidth = _tree.Bounds.Right - newLeft,
-                    newHeight = _tree.Bounds.Bottom - newTop;
-                _tree.Bounds = new Rectangle(newLeft, newTop, Math.Max(newWidth, _tree._extendToE - newLeft + 1), Math.Max(newHeight, _tree._extendToS - newTop + 1));
-                _tree._extendToN = int.MaxValue;
-                _tree._extendToE = int.MinValue;
-                _tree._extendToS = int.MinValue;
-                _tree._extendToW = int.MaxValue;
-                if (_tree._updates.HasFlag(Updates.AutoExpandTree)) {
-                    _game.Components.Remove(this);
-                    _tree._updates &= ~Updates.AutoExpandTree;
-                }
-            }
-        }
-
-        internal const int MIN_SIZE = 4;
-
-        /// <summary>Set the boundary rect of this tree.</summary>
-        public Rectangle Bounds {
-            get => _bounds;
+        /// <summary>Get/set the max items that can be set.</summary>
+        public int MaxItems {
+            get { return _item.Length; }
             set {
-                if (_root.NW != null) {
-                    _toProcess.Push(_root.NE);
-                    _toProcess.Push(_root.SE);
-                    _toProcess.Push(_root.SW);
-                    _toProcess.Push(_root.NW);
-                    _root.NE = null;
-                    _root.SE = null;
-                    _root.SW = null;
-                    _root.NW = null;
-                    Node n;
-                    do {
-                        n = _toProcess.Pop();
-                        n.Clear();
-                        n.Bounds = Rectangle.Empty;
-                        Pool<Node>.Free(n);
-                        if (n.NW == null)
-                            continue;
-                        _toProcess.Push(n.NE);
-                        _toProcess.Push(n.SE);
-                        _toProcess.Push(n.SW);
-                        _toProcess.Push(n.NW);
-                        n.NE = null;
-                        n.SE = null;
-                        n.SW = null;
-                        n.NW = null;
-                    }
-                    while (_toProcess.Count > 0);
-                }
-                _root.Clear();
-                _bounds = value;
-                var center = value.Center;
-                _root.cX = center.X;
-                _root.cY = center.Y;
-                int r = 1,
-                    w = value.Width,
-                    h = value.Height;
-                while (w >= MIN_SIZE && h >= MIN_SIZE) {
-                    r += 4;
-                    w /= 2;
-                    h /= 2;
-                }
-                Pool<Node>.EnsureCount(r);
-                _nodesToClean.Clear();
-                _nodesToSubdivide.Clear();
-                _nodesToGrow.Clear();
-                foreach (var i in _safeItem._set) {
-                    var aabb = i.Bounds.AABB;
-                    var n = Insert(i, _root, aabb.Center);
-                    _item[i] = (n, aabb.Center);
-                    if (n.ItemCount > NodesCapacity && n.Depth < MaxDepth)
-                        _nodesToSubdivide.Add(n);
-                }
-                QueueClean();
+                if (value < _item.Length)
+                    for (var i = value; i < _item.Length; i++)
+                        if (_item[i].Next != -2)
+                            Remove(i);
+                Array.Resize(ref _item, value);
             }
         }
 
-        static readonly Game _game;
-
-        static Quadtree() {
-            foreach (var p in typeof(Game).GetProperties(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Static))
-                if (p.GetValue(_game) is Game g)
-                    _game = g;
+        /// <summary>Create a new tree with the desired bounds, max items and max depth.</summary>
+        /// <param name="maxItems">Initial max items that can be set.</param>
+        /// <param name="maxDepth">Amount of layers this tree can subdivide into.</param>
+        public Quadtree(float x, float y, float width, float height, int maxItems, byte maxDepth = 8) {
+            _newX = _x = x;
+            _newY = _y = y;
+            _newWidth = _width = width;
+            _newHeight = _height = height;
+            _maxDepth = maxDepth;
+            var nodes = 1;
+            for (var i = 0; i < maxDepth; i++)
+                nodes += (int)Math.Pow(4, i + 1);
+            _node = new Node[nodes];
+            _node[0] = new Node(x + (width * .5f), y + (height * .5f), 0);
+            _freeNode = 1;
+            _item = new TreeItem[maxItems];
+            for (var i = 0; i < _item.Length; i++)
+                _item[i].Next = -2;
+            _toProcess = new Stack<int>();
         }
 
-        /// <summary>Returns true if <paramref name="item"/> is in the tree.</summary>
-        public bool Contains(T item) => _safeItem.Contains(item);
-        /// <summary>Returns an enumerator that iterates through the collection.</summary>
-        public IEnumerator<T> GetEnumerator() => _safeItem.GetEnumerator();
-        /// <summary>Return count of all items.</summary>
-        public int ItemCount => _safeItem.Count;
-        /// <summary>Return all items and their container rects.</summary>
-        public IEnumerable<(T Item, Rectangle Node)> Bundles {
+        /// <summary>Return the latest bounds of item <paramref name="i"/>.</summary>
+        public (float X, float Y, float Width, float Height) this[int i] {
             get {
-                foreach (var i in _item)
-                    yield return (i.Key, i.Value.Node.Bounds);
+                ref readonly var item = ref _item[i];
+                return (item.X, item.Y, item.Width, item.Height);
             }
         }
 
-        internal readonly Node _root;
-        internal readonly Dictionary<T, (Node Node, Point XY)> _item = new Dictionary<T, (Node, Point)>();
-        internal readonly SafeHashSet<T> _safeItem = new SafeHashSet<T>();
-        internal readonly Stack<Node> _toProcess = new Stack<Node>();
-
-        Rectangle _bounds;
-        int _extendToN = int.MaxValue,
-            _extendToE = int.MinValue,
-            _extendToS = int.MinValue,
-            _extendToW = int.MaxValue;
-        Updates _updates;
-
-        readonly HashSet<Node> _nodesToClean = new HashSet<Node>(),
-            _nodesToSubdivide = new HashSet<Node>(),
-            _nodesToGrow = new HashSet<Node>();
-        readonly CleanNodes _cleanNodes;
-        readonly ExpandTree _expandTree;
-
-        [Flags] enum Updates : byte { ManualMode = 1, AutoCleanNodes = 2, AutoExpandTree = 4, ManualCleanNodes = 8, ManualExpandTree = 16 }
-
-        /// <summary>Construct an empty quadtree with no bounds (will auto expand).</summary>
-        public Quadtree() {
-            _root = new Node();
-            _cleanNodes = new CleanNodes(_game, this);
-            _expandTree = new ExpandTree(_game, this);
-        }
-
-        /// <summary>Inserts <paramref name="item"/> into the tree. ONLY USE IF <paramref name="item"/> ISN'T ALREADY IN THE TREE.</summary>
-        public void Add(T item) {
-            var xy = item.Bounds.Center.ToPoint();
-            _safeItem.Add(item);
-            if (_safeItem.Count == 1 && _bounds.IsEmpty) {
-                Bounds = new Rectangle(xy, new Point(1));
-                return;
-            }
-            if (TryExpandTree(xy))
-                return;
-            var n = Insert(item, _root, xy);
-            _item.Add(item, (n, xy));
-            if (n.ItemCount > NodesCapacity && n.Depth < MaxDepth)
-                _nodesToSubdivide.Add(n);
-            _nodesToGrow.Add(n);
-            QueueClean();
-        }
-        /// <summary>Updates the given item from the tree if it exists.</summary>
-        /// <returns>True if item is in the tree and has been updated, otherwise false.</returns>
-        public bool Update(T item) {
-            var xy = item.Bounds.Center.ToPoint();
-            if (TryExpandTree(xy))
-                return true;
-            if (!_item.TryGetValue(item, out var v))
-                return false;
-            if (v.Node == _root) {
-                _item[item] = (v.Node, xy);
-                if (_root.ItemCount > NodesCapacity)
-                    _nodesToSubdivide.Add(_root);
-                _nodesToGrow.Add(_root);
-                QueueClean();
-                return true;
-            }
-            int halfWidth = _bounds.Width >> v.Node.Depth,
-                halfHeight = _bounds.Height >> v.Node.Depth;
-            var bounds = new Rectangle(v.Node.cX - halfWidth, v.Node.cY - halfHeight, halfWidth << 1, halfHeight << 1);
-            if (bounds.Contains(xy)) {
-                //if (Math.Sign(xy.X - v.Node.Parent.cX) == Math.Sign(v.XY.X - v.Node.Parent.cX) && Math.Sign(xy.Y - v.Node.Parent.cY) == Math.Sign(v.XY.Y - v.Node.Parent.cY)) {
-                _item[item] = (v.Node, xy);
-                _nodesToGrow.Add(v.Node);
-                QueueClean();
-                return true;
-            }
-            v.Node.Remove(item);
-            _nodesToGrow.Add(v.Node);
-            _nodesToClean.Add(v.Node.Parent);
-            var n = v.Node;
-            do {
-                if (n.Parent == null)
-                    break;
-                halfWidth = _bounds.Width >> n.Depth;
-                halfHeight = _bounds.Height >> n.Depth;
-                bounds = new Rectangle(n.cX - halfWidth, n.cY - halfHeight, halfWidth << 1, halfHeight << 1);
-                if (bounds.Contains(xy)) {
-                    //if (Math.Sign(xy.X - n.Parent.cX) == Math.Sign(v.XY.X - n.Parent.cX) && Math.Sign(xy.Y - n.Parent.cY) == Math.Sign(v.XY.Y - n.Parent.cY)) {
-                    n = n.Parent;
-                    break;
+        /// <summary>Set id <paramref name="i"/> to the given bounds.</summary>
+        public void Update(int i, Rectangle rect) { Update(i, rect.X, rect.Y, rect.Width, rect.Height); }
+        /// <summary>Set id <paramref name="i"/> to the given bounds.</summary>
+        public void Update(int i, float x, float y, float width, float height) {
+            if (x + (width * .5f) < _newX)
+                _newX = x + (width * .5f);
+            if (y + (height * .5f) < _newY)
+                _newY = y + (height * .5f);
+            if ((x + (width * .5f)) - _newX > _newWidth)
+                _newWidth = (x + (width * .5f)) - _newX;
+            if ((y + (height * .5f)) - _newY > _newHeight)
+                _newHeight = (y + (height * .5f)) - _newY;
+            ref var item = ref _item[i];
+            var newNode = FindNode(x + (width * .5f), y + (height * .5f));
+            if (item.Next != -2) {
+                var oldNode = FindNode(item.X + (item.Width * .5f), item.Y + (item.Height * .5f));
+                if (newNode == oldNode) {
+                    item.X = x;
+                    item.Y = y;
+                    item.Width = width;
+                    item.Height = height;
+                    return;
                 }
-                n = n.Parent;
+                Remove(i, oldNode);
             }
-            while (true);
-            var n2 = Insert(item, n, xy);
-            _item[item] = (n2, xy);
-            if (n2.ItemCount > NodesCapacity && n2.Depth < MaxDepth)
-                _nodesToSubdivide.Add(n2);
-            _nodesToGrow.Add(n2);
-            QueueClean();
-            return true;
+            item.Next = -1;
+            item.X = x;
+            item.Y = y;
+            item.Width = width;
+            item.Height = height;
+            ref var node = ref _node[newNode];
+            if (node.Child == 0)
+                node.Child = i + 1;
+            else {
+                var idx = node.Child - 1;
+                while (_item[idx].Next != -1)
+                    idx = _item[idx].Next;
+                ref var j = ref _item[idx];
+                j.Next = i;
+            }
         }
-        /// <summary>Removes the given item from the tree if it exists.</summary>
-        /// <returns>True if item was in the tree and was removed, otherwise false.</returns>
-        public bool Remove(T item) {
-            if (!_item.TryGetValue(item, out var v))
-                return false;
-            v.Node.Remove(item);
-            if (v.Node.Parent != null)
-                _nodesToClean.Add(v.Node.Parent);
-            QueueClean();
-            _item.Remove(item);
-            _safeItem.Remove(item);
-            if (_item.Count == 0)
-                _bounds = Rectangle.Empty;
-            return true;
+        /// <summary>Remove id <paramref name="i"/>, no re-ordering, <paramref name="i"/> will be available for you to re-use.</summary>
+        public void Remove(int i, int nodeStart = 0) {
+            ref var item = ref _item[i];
+            ref var node = ref _node[FindNode(item.X + (item.Width * .5f), item.Y + (item.Height * .5f), nodeStart)];
+            int o = node.Child - 1;
+            if (o == i) {
+                node.Child = item.Next + 1;
+            } else {
+                int prev;
+                do {
+                    prev = o;
+                    o = _item[o].Next;
+                } while (o != i);
+                ref var j = ref _item[prev];
+                j.Next = item.Next;
+            }
+            item.Next = -2;
         }
-        /// <summary>Removes all items and nodes from the tree.</summary>
+        /// <summary>Returns true if id <paramref name="i"/> has been added.</summary>
+        public bool Contains(int i) {
+            return _item[i].Next != -2;
+        }
+        /// <summary>Clear all items and nodes.</summary>
         public void Clear() {
-            if (_root.NW != null) {
-                _toProcess.Push(_root.NE);
-                _toProcess.Push(_root.SE);
-                _toProcess.Push(_root.SW);
-                _toProcess.Push(_root.NW);
-                _root.NE = null;
-                _root.SE = null;
-                _root.SW = null;
-                _root.NW = null;
-                Node n;
-                do {
-                    n = _toProcess.Pop();
-                    n.Clear();
-                    n.Bounds = Rectangle.Empty;
-                    Pool<Node>.Free(n);
-                    if (n.NW == null)
-                        continue;
-                    _toProcess.Push(n.NE);
-                    _toProcess.Push(n.SE);
-                    _toProcess.Push(n.SW);
-                    _toProcess.Push(n.NW);
-                    n.NE = null;
-                    n.SE = null;
-                    n.SW = null;
-                    n.NW = null;
-                } while (_toProcess.Count > 0);
+            for (var i = 0; i < _item.Length; i++) {
+                ref var item = ref _item[i];
+                item.Next = -2;
             }
-            _root.Clear();
-            _item.Clear();
-            _safeItem.Clear();
-            _bounds = Rectangle.Empty;
+            _node[0].Child = 0;
+            _freeNode = 1;
         }
-
-        /// <summary>Find all items intersecting the given position.</summary>
-        /// <param name="xy">Position.</param>
-        /// <returns>Items that overlap the given position.</returns>
-        public ItemSet QueryPoint(Point xy) => Query<ItemSet>(new RotRect(new Vector2(xy.X, xy.Y), Vector2.One));
-        /// <summary>Find all items intersecting the given position.</summary>
-        /// <param name="xy">Position.</param>
-        /// <returns>Items that overlap the given position.</returns>
-        public ItemSet QueryPoint(Vector2 xy) => Query<ItemSet>(new RotRect(new Vector2((int)MathF.Round(xy.X), (int)MathF.Round(xy.Y)), Vector2.One));
-        /// <summary>Find all items inside of the given rectangle.</summary>
-        /// <param name="area">Area.</param>
-        /// <param name="rotation">Rotation (in radians) of the rectangle.</param>
-        /// <param name="origin">Origin of rectangle.</param>
-        /// <returns>Items that overlap the given rectangle.</returns>
-        public ItemSet QueryRect(Rectangle area, float rotation = 0, Vector2 origin = default) => Query<ItemSet>(new RotRect(area.Location.ToVector2(), area.Size.ToVector2(), rotation, origin));
-        /// <summary>Find all items inside of the given rectangle.</summary>
-        /// <param name="xy">Position of the rectangle.</param>
-        /// <param name="size">Size of the rectangle.</param>
-        /// <param name="rotation">Rotation (in radians) of the rectangle.</param>
-        /// <param name="origin">Origin of the rectangle.</param>
-        /// <returns>Items that overlap the given rectangle.</returns>
-        public ItemSet QueryRect(Vector2 xy, Vector2 size, float rotation = default, Vector2 origin = default) => Query<ItemSet>(new RotRect(xy, size, rotation, origin));
-        /// <summary>Find all items inside of the given rectangle.</summary>
-        /// <returns>Items that overlap the given rectangle.</returns>
-        public ItemSet QueryRect(RotRect value) => Query<ItemSet>(value);
-        /// <summary>Find all items within the radius of the given position.</summary>
-        /// <param name="xy">Position.</param>
-        /// <param name="radius">Radius.</param>
-        /// <returns>Items that are within <paramref name="radius"/> of <paramref name="xy"/>.</returns>
-        public ItemSet QueryRadius(Vector2 xy, float radius) => Query<ItemSet>(xy, radius);
-        /// <summary>Find all items intersecting the given line, ordered closest to <paramref name="start"/> first.</summary>
-        /// <param name="start">Start point.</param>
-        /// <param name="end">End point.</param>
-        /// <param name="thickness">Thickness (width) of line.</param>
-        /// <returns>Items that intersect the given line.</returns>
-        public ItemList Linecast(Vector2 start, Vector2 end, float thickness = 1) {
-            var items = Query<ItemList>(new RotRect(start, new Vector2(MathF.Sqrt(Vector2.DistanceSquared(start, end)), thickness), MathF.Atan2(end.Y - start.Y, end.X - start.X), new Vector2(0, thickness / 2)));
-            items.Sort((T x, T y) => Vector2.DistanceSquared(start, x.Bounds.XY) < Vector2.DistanceSquared(start, x.Bounds.XY) ? -1 : 0);
-            return items;
-        }
-        /// <summary>Find all items intersecting the given ray, ordered closest to <paramref name="start"/> first.</summary>
-        /// <param name="start">Start point.</param>
-        /// <param name="direction">Direction of the ray.</param>
-        /// <param name="thickness">Thickness (width) of ray.</param>
-        /// <returns>Items that intersect the given ray.</returns>
-        public ItemList Raycast(Vector2 start, Vector2 direction, float thickness = 1) {
-            var end = start + (direction * float.MaxValue);
-            var items = Query<ItemList>(new RotRect(start, new Vector2(MathF.Sqrt(Vector2.DistanceSquared(start, end)), thickness), MathF.Atan2(direction.Y, direction.X), new Vector2(0, thickness / 2)));
-            items.Sort((T x, T y) => Vector2.DistanceSquared(start, x.Bounds.XY) < Vector2.DistanceSquared(start, x.Bounds.XY) ? -1 : 0);
-            return items;
-        }
-        /// <summary>Find all items intersecting the given ray, ordered closest to <paramref name="start"/> first.</summary>
-        /// <param name="start">Start point.</param>
-        /// <param name="rotation">Rotation (in radians).</param>
-        /// <param name="thickness">Thickness (width) of ray.</param>
-        /// <returns>Items that intersect the given ray.</returns>
-        public ItemList Raycast(Vector2 start, float rotation, float thickness = 1) {
-            var end = new Vector2(start.X + (MathF.Cos(rotation) * float.MaxValue), start.Y + (MathF.Sin(rotation) * float.MaxValue));
-            var items = Query<ItemList>(new RotRect(start, new Vector2(MathF.Sqrt(Vector2.DistanceSquared(start, end)), thickness), rotation, new Vector2(0, thickness / 2)));
-            items.Sort((T x, T y) => Vector2.DistanceSquared(start, x.Bounds.XY) < Vector2.DistanceSquared(start, x.Bounds.XY) ? -1 : 0);
-            return items;
-        }
-
-        /// <summary>You need to call this each frame if you don't use base.Update() in <see cref="Game.Update(GameTime)"/>.</summary>
+        /// <summary>Call this once per frame preferably at the end of the Update call. This manages sub-dividing and updates node bounds.</summary>
         public void Update() {
-            if (_updates.HasFlag(Updates.AutoCleanNodes)) {
-                _game.Components.Remove(_cleanNodes);
-                _cleanNodes.Update(null);
-            } else if (_updates.HasFlag(Updates.ManualCleanNodes))
-                _cleanNodes.Update(null);
-            if (_updates.HasFlag(Updates.AutoExpandTree)) {
-                _game.Components.Remove(_expandTree);
-                _expandTree.Update(null);
-            } else if (_updates.HasFlag(Updates.ManualExpandTree))
-                _expandTree.Update(null);
-            _updates = Updates.ManualMode;
-        }
-
-        /// <summary>Shrinks the tree to the smallest possible size.</summary>
-        public void Shrink() {
-            if (_item.Count == 0)
-                return;
-            Point min = new Point(int.MaxValue),
-                max = new Point(int.MinValue);
-            foreach (var i in _safeItem) {
-                var xy = i.Bounds.AABB.Center;
-                if (xy.X < min.X)
-                    min.X = xy.X;
-                if (xy.X > max.X)
-                    max.X = xy.X;
-                if (xy.Y < min.Y)
-                    min.Y = xy.Y;
-                if (xy.Y > max.Y)
-                    max.Y = xy.Y;
-            }
-            if (Bounds.X != min.X || Bounds.Y != min.Y || Bounds.Width != max.X - min.X + 1 || Bounds.Height != max.Y - min.Y + 1)
-                Bounds = new Rectangle(min.X, min.Y, max.X - min.X + 1, max.Y - min.Y + 1);
-        }
-
-        Node Insert(T item, Node n, Point xy) {
-            do {
-                if (n.NW != null) {
-                    n = xy.X < n.cX ? xy.Y < n.cY ? n.NW : n.SW : xy.Y < n.cY ? n.NE : n.SE;
-                    continue;
-                }
-                n.Add(item);
-                return n;
-            } while (true);
-        }
-
-        bool TrySubdivide(Node n) {
-            if (n.ItemCount > NodesCapacity && n.Depth < MaxDepth) {
-                var depth = (byte)(n.Depth + 1);
-                int halfWidth = _bounds.Width >> depth,
-                    halfHeight = _bounds.Height >> depth;
-                n.NW = Pool<Node>.Spawn();
-                n.NW.cX = n.cX - halfWidth;
-                n.NW.cY = n.cY - halfHeight;
-                n.NW.Depth = depth;
-                n.NW.Parent = n;
-                n.SW = Pool<Node>.Spawn();
-                n.SW.cX = n.cX - halfWidth;
-                n.SW.cY = n.cY + halfHeight;
-                n.SW.Depth = depth;
-                n.SW.Parent = n;
-                n.NE = Pool<Node>.Spawn();
-                n.NE.cX = n.cX + halfWidth;
-                n.NE.cY = n.cY - halfHeight;
-                n.NE.Depth = depth;
-                n.NE.Parent = n;
-                n.SE = Pool<Node>.Spawn();
-                n.SE.cX = n.cX + halfWidth;
-                n.SE.cY = n.cY + halfHeight;
-                n.SE.Depth = depth;
-                n.SE.Parent = n;
-                var nItems = n._firstItem;
-                do {
-                    var ii = _item[nItems.Item];
-                    var n2 = ii.XY.X < n.cX ? ii.XY.Y < n.cY ? n.NW : n.SW : ii.XY.Y < n.cY ? n.NE : n.SE;
-                    n2.Add(nItems.Item);
-                    _item[nItems.Item] = (n2, ii.XY);
-                    if (nItems.Next == null)
-                        break;
-                    nItems = nItems.Next;
-                } while (true);
-                n.Clear();
-                return true;
-            }
-            return false;
-        }
-
-        bool TryExpandTree(Point xy) {
-            if (Bounds.Left > xy.X || Bounds.Top > xy.Y || Bounds.Right < xy.X + 1 || Bounds.Bottom < xy.Y + 1) {
-                if (xy.Y < _extendToN)
-                    _extendToN = xy.Y;
-                if (xy.X > _extendToE)
-                    _extendToE = xy.X;
-                if (xy.Y > _extendToS)
-                    _extendToS = xy.Y;
-                if (xy.X < _extendToW)
-                    _extendToW = xy.X;
-                if (_updates.HasFlag(Updates.ManualMode))
-                    _updates |= Updates.ManualExpandTree;
-                else if (!_updates.HasFlag(Updates.AutoExpandTree)) {
-                    _game.Components.Add(_expandTree);
-                    _updates |= Updates.AutoExpandTree;
-                }
-                return true;
-            }
-            return false;
-        }
-
-        void QueueClean() {
-            if (_updates.HasFlag(Updates.ManualMode))
-                _updates |= Updates.ManualCleanNodes;
-            else if (!_updates.HasFlag(Updates.AutoCleanNodes)) {
-                _game.Components.Add(_cleanNodes);
-                _updates |= Updates.AutoCleanNodes;
-            }
-        }
-
-        TCollection Query<TCollection>(RotRect value) where TCollection : class, ICollection<T>, INodes, new() {
-            var items = Pool<TCollection>.Spawn();
-            items._nodes = Pool<HashSet<Rectangle>>.Spawn();
-            var n = _root;
-            do {
-                if (n.NW == null) {
-                    if (n.ItemCount > 0) {
-                        items._nodes.Add(n.Bounds);
-                        var nodeItems = n._firstItem;
-                        if (value.Contains(n.Bounds))
-                            do {
-                                items.Add(nodeItems.Item);
-                                if (nodeItems.Next == null)
-                                    break;
-                                nodeItems = nodeItems.Next;
-                            } while (true);
-                        else
-                            do {
-                                if (value.Intersects(nodeItems.Item.Bounds))
-                                    items.Add(nodeItems.Item);
-                                if (nodeItems.Next == null)
-                                    break;
-                                nodeItems = nodeItems.Next;
-                            } while (true);
+            if (_newX != _x || _newY != _y || _newWidth != _width || _newHeight != _height) {
+                _x = _newX;
+                _y = _newY;
+                _width = _newWidth;
+                _height = _newHeight;
+                var toAdd = ArrayPool<int>.Shared.Rent(_item.Length);
+                var toAddCount = 0;
+                for (var i = 0; i < _item.Length; i++) {
+                    ref var item = ref _item[i];
+                    if (item.Next != -2) {
+                        toAdd[toAddCount++] = i;
+                        item.Next = -2;
                     }
-                } else {
-                    if (value.Intersects(n.NE.Bounds))
-                        _toProcess.Push(n.NE);
-                    if (value.Intersects(n.SE.Bounds))
-                        _toProcess.Push(n.SE);
-                    if (value.Intersects(n.SW.Bounds))
-                        _toProcess.Push(n.SW);
-                    if (value.Intersects(n.NW.Bounds))
-                        _toProcess.Push(n.NW);
                 }
-                if (_toProcess.Count == 0)
-                    break;
-                n = _toProcess.Pop();
-            } while (true);
-            return items;
-        }
-        TCollection Query<TCollection>(Vector2 xy, float radius) where TCollection : class, ICollection<T>, INodes, new() {
-            var rSqr = radius * radius;
-            var items = Pool<TCollection>.Spawn();
-            items._nodes = Pool<HashSet<Rectangle>>.Spawn();
-            var n = _root;
+                _node[0].Child = 0;
+                _freeNode = 1;
+                for (var i = 0; i < toAddCount; i++) {
+                    ref readonly var item = ref _item[toAdd[i]];
+                    Update(toAdd[i], item.X, item.Y, item.Width, item.Height);
+                }
+                ArrayPool<int>.Shared.Return(toAdd);
+            }
+            int ni = 0;
+            ref var n = ref _node[ni];
             do {
-                items._nodes.Add(n.Bounds);
-                if (n.NW == null) {
-                    if (n.ItemCount > 0) {
-                        var nodeItems = n._firstItem;
-                        do {
-                            if (Vector2.DistanceSquared(xy, nodeItems.Item.Bounds.ClosestPoint(xy)) <= rSqr)
-                                items.Add(nodeItems.Item);
-                            if (nodeItems.Next == null)
-                                break;
-                            nodeItems = nodeItems.Next;
-                        } while (true);
-                    }
-                } else {
-                    if (Vector2.DistanceSquared(xy, new RotRect(n.NE.Bounds).ClosestPoint(xy)) <= rSqr)
-                        _toProcess.Push(n.NE);
-                    if (Vector2.DistanceSquared(xy, new RotRect(n.SE.Bounds).ClosestPoint(xy)) <= rSqr)
-                        _toProcess.Push(n.SE);
-                    if (Vector2.DistanceSquared(xy, new RotRect(n.SW.Bounds).ClosestPoint(xy)) <= rSqr)
-                        _toProcess.Push(n.SW);
-                    if (Vector2.DistanceSquared(xy, new RotRect(n.NW.Bounds).ClosestPoint(xy)) <= rSqr)
-                        _toProcess.Push(n.NW);
+                if (n.Child < 0) {
+                    int c = Math.Abs(n.Child);
+                    _toProcess.Push(c);
+                    _toProcess.Push(c + 1);
+                    _toProcess.Push(c + 2);
+                    _toProcess.Push(c + 3);
+                    Node nw = _node[c],
+                        ne = _node[c + 1],
+                        sw = _node[c + 2],
+                        se = _node[c + 3];
+                    Span<float> nwRect = nw.Child == 0 ? stackalloc float[4] { float.MaxValue, float.MaxValue, float.MinValue, float.MinValue } : stackalloc float[4] { nw.X, nw.Y, nw.X + nw.Width, nw.Y + nw.Height },
+                        neRect = ne.Child == 0 ? stackalloc float[4] { float.MaxValue, float.MaxValue, float.MinValue, float.MinValue } : stackalloc float[4] { ne.X, ne.Y, ne.X + ne.Width, ne.Y + ne.Height },
+                        swRect = sw.Child == 0 ? stackalloc float[4] { float.MaxValue, float.MaxValue, float.MinValue, float.MinValue } : stackalloc float[4] { sw.X, sw.Y, sw.X + sw.Width, sw.Y + sw.Height },
+                        seRect = se.Child == 0 ? stackalloc float[4] { float.MaxValue, float.MaxValue, float.MinValue, float.MinValue } : stackalloc float[4] { se.X, se.Y, se.X + se.Width, se.Y + se.Height };
+                    n.X = MathF.Min(nw.X, MathF.Min(sw.X, MathF.Min(ne.X, se.X)));
+                    n.Y = MathF.Min(nw.Y, MathF.Min(ne.Y, MathF.Min(sw.Y, se.Y)));
+                    n.Width = MathF.Max(neRect[2], MathF.Max(seRect[2], MathF.Max(nwRect[2], swRect[2]))) - n.X;
+                    n.Height = MathF.Max(swRect[3], MathF.Max(seRect[3], MathF.Max(nwRect[3], neRect[3]))) - n.Y;
+                } else if (n.Child > 0) {
+                    int items = 0;
+                    float minX = float.MaxValue,
+                        minY = float.MaxValue,
+                        maxX = float.MinValue,
+                        maxY = float.MinValue;
+                    ref readonly var i = ref _item[n.Child - 1];
+                    do {
+                        items++;
+                        minX = MathF.Min(minX, i.X);
+                        minY = MathF.Min(minY, i.Y);
+                        maxX = MathF.Max(maxX, i.X + i.Width);
+                        maxY = MathF.Max(maxY, i.Y + i.Height);
+                        if (i.Next == -1)
+                            break;
+                        i = ref _item[i.Next];
+                    } while (true);
+                    n.X = minX;
+                    n.Y = minY;
+                    n.Width = maxX - minX;
+                    n.Height = maxY - minY;
+                    if (items >= 8 && n.Depth < _maxDepth)
+                        Subdivide(ni);
                 }
-                if (_toProcess.Count == 0)
+                if (_toProcess.Count <= 0)
                     break;
-                n = _toProcess.Pop();
+                ni = _toProcess.Pop();
+                n = ref _node[ni];
             } while (true);
-            return items;
         }
 
-        IEnumerator IEnumerable.GetEnumerator() => _safeItem.GetEnumerator();
+        /// <summary>Query and return a disposable collection of ids that intersect the given rectangle.</summary>
+        public Yield Query(Rectangle rect) { return Query(rect.X, rect.Y, rect.Width, rect.Height); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given rectangle.</summary>
+        public Yield Query(float x, float y, float width, float height) {
+            float right = x + width,
+                bottom = y + height;
+            var yield = new Yield(_item.Length);
+            var totalItems = 0;
+            ref readonly var n = ref _node[0];
+            do {
+                if (n.Child < 0) {
+                    int c = Math.Abs(n.Child);
+                    Node nw = _node[c],
+                        ne = _node[c + 1],
+                        sw = _node[c + 2],
+                        se = _node[c + 3];
+                    if (nw.X < right && nw.X + nw.Width > x && nw.Y < bottom && nw.Y + nw.Height > y)
+                        _toProcess.Push(c);
+                    if (ne.X < right && ne.X + ne.Width > x && ne.Y < bottom && ne.Y + ne.Height > y)
+                        _toProcess.Push(c + 1);
+                    if (sw.X < right && sw.X + sw.Width > x && sw.Y < bottom && sw.Y + sw.Height > y)
+                        _toProcess.Push(c + 2);
+                    if (se.X < right && se.X + se.Width > x && se.Y < bottom && se.Y + se.Height > y)
+                        _toProcess.Push(c + 3);
+                } else if (n.Child > 0) {
+                    int i = n.Child - 1;
+                    do {
+                        ref readonly var item = ref _item[i];
+                        if (item.X < right && item.X + item.Width > x && item.Y < bottom && item.Y + item.Height > y)
+                            yield._items[totalItems++] = i;
+                        i = item.Next;
+                    } while (i != -1);
+                }
+                if (_toProcess.Count <= 0)
+                    break;
+                n = ref _node[_toProcess.Pop()];
+            } while (true);
+            yield.Count = totalItems;
+            return yield;
+        }
+        /// <summary>Query and return a disposable collection of ids that intersect the given rectangle.</summary>
+        public Yield Query(Rectangle rect, float rotation, float originX, float originY) { return Query(rect.X, rect.Y, rect.Width, rect.Height, rotation, originX, originY); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given rectangle.</summary>
+        public Yield Query(Rectangle rect, float rotation, Vector2 origin) { return Query(rect.X, rect.Y, rect.Width, rect.Height, rotation, origin.X, origin.Y); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given rectangle.</summary>
+        public Yield Query(float x, float y, float width, float height, float rotation, Vector2 origin) { return Query(x, y, width, height, rotation, origin.X, origin.Y); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given rectangle.</summary>
+        public Yield Query(float x, float y, float width, float height, float rotation, float originX, float originY) {
+            float cos = MathF.Cos(rotation),
+                sin = MathF.Sin(rotation),
+                sx = -originX,
+                sy = -originY,
+                w = width + sx,
+                h = height + sy,
+                xcos = sx * cos,
+                ycos = sy * cos,
+                xsin = sx * sin,
+                ysin = sy * sin,
+                wcos = w * cos,
+                wsin = w * sin,
+                hcos = h * cos,
+                hsin = h * sin;
+            Vector2 tl = new Vector2(xcos - ysin + x, xsin + ycos + y),
+                tr = new Vector2(wcos - ysin + x, wsin + ycos + y),
+                br = new Vector2(wcos - hsin + x, wsin + hcos + y),
+                bl = new Vector2(xcos - hsin + x, xsin + hcos + y);
+            (float x1, float y1, float x2, float y2) t = (tl.X, tl.Y, tr.X, tr.Y), r = (tr.X, tr.Y, br.X, br.Y), b = (br.X, br.Y, bl.X, bl.Y), l = (bl.X, bl.Y, tl.X, tl.Y);
+            bool Intersects((float x, float y, float width, float height) rect) {
+                Vector2 vtl = new Vector2(rect.x, rect.y),
+                    vtr = new Vector2(rect.x + rect.width, rect.y),
+                    vbr = new Vector2(vtr.X, rect.y + rect.height),
+                    vbl = new Vector2(rect.x, vbr.Y);
+                (float x1, float y1, float x2, float y2) vt = (vtl.X, vtl.Y, vtr.X, vtr.Y), vr = (vtr.X, vtr.Y, vbr.X, vbr.Y), vb = (vbr.X, vbr.Y, vbl.X, vbl.Y), vl = (vbl.X, vbl.Y, vtl.X, vtl.Y);
+                static bool LinesIntersect((float x1, float y1, float x2, float y2) a, (float x1, float y1, float x2, float y2) b) {
+                    (float x1, float y1) = (a.x2 - a.x1, a.y2 - a.y1);
+                    (float x2, float y2) = (b.x2 - b.x1, b.y2 - b.y1);
+                    var denominator = x1 * y2 - y1 * x2;
+                    if (MathF.Abs(denominator) < float.Epsilon)
+                        return false;
+                    (float x3, float y3) = (b.x1 - a.x1, b.y1 - a.y1);
+                    var t = (x3 * y2 - y3 * x2) / denominator;
+                    if (t < 0 || t > 1)
+                        return false;
+                    var u = (x3 * y1 - y3 * x1) / denominator;
+                    if (u < 0 || u > 1)
+                        return false;
+                    return true;
+                }
+                static bool Ints((float x1, float y1, float x2, float y2) a, (float x1, float y1, float x2, float y2) b, (float x1, float y1, float x2, float y2) c, (float x1, float y1, float x2, float y2) d, (float x1, float y1, float x2, float y2) value) {
+                    return LinesIntersect(a, value) || LinesIntersect(b, value) || LinesIntersect(c, value) || LinesIntersect(d, value);
+                }
+                static float IsLeft(Vector2 a, Vector2 b, Vector2 p) {
+                    return (b.X - a.X) * (p.Y - a.Y) - (p.X - a.X) * (b.Y - a.Y);
+                }
+                static bool InRect(Vector2 x, Vector2 y, Vector2 z, Vector2 w, Vector2 p) {
+                    return IsLeft(x, y, p) > 0 && IsLeft(y, z, p) > 0 && IsLeft(z, w, p) > 0 && IsLeft(w, x, p) > 0;
+                }
+                return Ints(t, r, b, l, vt) || Ints(t, r, b, l, vr) || Ints(t, r, b, l, vb) || Ints(t, r, b, l, vl) ||
+                    InRect(tl, tr, br, bl, vtl) || InRect(vtl, vtr, vbr, vbl, tl);
+            }
+            float right = x + width,
+                bottom = y + height;
+            var yield = new Yield(_item.Length);
+            var totalItems = 0;
+            ref readonly var n = ref _node[0];
+            do {
+                if (n.Child < 0) {
+                    int c = Math.Abs(n.Child);
+                    Node nw = _node[c],
+                        ne = _node[c + 1],
+                        sw = _node[c + 2],
+                        se = _node[c + 3];
+                    if (Intersects((nw.X, nw.Y, nw.Width, nw.Height)))
+                        _toProcess.Push(c);
+                    if (Intersects((ne.X, ne.Y, ne.Width, ne.Height)))
+                        _toProcess.Push(c + 1);
+                    if (Intersects((sw.X, sw.Y, sw.Width, sw.Height)))
+                        _toProcess.Push(c + 2);
+                    if (Intersects((se.X, se.Y, se.Width, se.Height)))
+                        _toProcess.Push(c + 3);
+                } else if (n.Child > 0) {
+                    int i = n.Child - 1;
+                    do {
+                        ref readonly var item = ref _item[i];
+                        if (Intersects((item.X, item.Y, item.Width, item.Height)))
+                            yield._items[totalItems++] = i;
+                        i = item.Next;
+                    } while (i != -1);
+                }
+                if (_toProcess.Count <= 0)
+                    break;
+                n = ref _node[_toProcess.Pop()];
+            } while (true);
+            yield.Count = totalItems;
+            return yield;
+        }
+        /// <summary>Query and return a disposable collection of ids that intersect the given point/radius.</summary>
+        public Yield Query(Point p, float radius = 1) { return Query(p.X, p.Y, radius); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given point/radius.</summary>
+        public Yield Query(Vector2 p, float radius = 1) { return Query(p.X, p.Y, radius); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given point/radius.</summary>
+        public Yield Query(float x, float y, float radius = 1) {
+            bool Intersects((float x, float y, float width, float height) rect) {
+                float dx = MathF.Abs(x - (rect.x + (rect.width * .5f))),
+                    dy = MathF.Abs(y - (rect.y + (rect.height * .5f)));
+                if (dx > (rect.width * .5f) + radius || dy > (rect.height * .5f) + radius)
+                    return false;
+                if (dx <= rect.width * .5f || dy <= rect.height * .5f)
+                    return true;
+                float fx = dx - (rect.width * .5f),
+                    fy = dy - (rect.height * .5f);
+                fx *= fx;
+                fy *= fy;
+                return fx + fy <= radius * radius;
+            }
+            var yield = new Yield(_item.Length);
+            var totalItems = 0;
+            ref readonly var n = ref _node[0];
+            do {
+                if (n.Child < 0) {
+                    int c = Math.Abs(n.Child);
+                    Node nw = _node[c],
+                        ne = _node[c + 1],
+                        sw = _node[c + 2],
+                        se = _node[c + 3];
+                    if (Intersects((nw.X, nw.Y, nw.Width, nw.Height)))
+                        _toProcess.Push(c);
+                    if (Intersects((ne.X, ne.Y, ne.Width, ne.Height)))
+                        _toProcess.Push(c + 1);
+                    if (Intersects((sw.X, sw.Y, sw.Width, sw.Height)))
+                        _toProcess.Push(c + 2);
+                    if (Intersects((se.X, se.Y, se.Width, se.Height)))
+                        _toProcess.Push(c + 3);
+                } else if (n.Child > 0) {
+                    int i = n.Child - 1;
+                    do {
+                        ref readonly var item = ref _item[i];
+                        if (Intersects((item.X, item.Y, item.Width, item.Height)))
+                            yield._items[totalItems++] = i;
+                        i = item.Next;
+                    } while (i != -1);
+                }
+                if (_toProcess.Count <= 0)
+                    break;
+                n = ref _node[_toProcess.Pop()];
+            } while (true);
+            yield.Count = totalItems;
+            return yield;
+        }
+        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
+        public Yield Raycast(Vector2 position, Point direction, float thickness = 1) { return Raycast(position.X, position.Y, direction.X, direction.Y, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
+        public Yield Raycast(Point position, Point direction, float thickness = 1) { return Raycast(position.X, position.Y, direction.X, direction.Y, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
+        public Yield Raycast(Point position, Vector2 direction, float thickness = 1) { return Raycast(position.X, position.Y, direction.X, direction.Y, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
+        public Yield Raycast(Point position, float directionX, float directionY, float thickness = 1) { return Raycast(position.X, position.Y, directionX, directionY, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
+        public Yield Raycast(Point position, float rotation, float thickness = 1) { return Raycast(position.X, position.Y, rotation, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
+        public Yield Raycast(Vector2 position, Vector2 direction, float thickness = 1) { return Raycast(position.X, position.Y, direction.X, direction.Y, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
+        public Yield Raycast(Vector2 position, float directionX, float directionY, float thickness = 1) { return Raycast(position.X, position.Y, directionX, directionY, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
+        public Yield Raycast(Vector2 position, float rotation, float thickness = 1) { return Raycast(position.X, position.Y, rotation, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
+        public Yield Raycast(float x, float y, Vector2 direction, float thickness = 1) { return Raycast(x, y, direction.X, direction.Y, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
+        public Yield Raycast(float x, float y, float directionX, float directionY, float thickness = 1) {
+            var rotation = MathF.Atan2(directionY, directionX);
+            return Query(x, y, float.MaxValue, thickness, rotation, 0, thickness * .5f);
+        }
+        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
+        public Yield Raycast(float x, float y, float rotation, float thickness = 1) { return Query(x, y, float.MaxValue, thickness, rotation, 0, thickness * .5f); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
+        public Yield Linecast(Point a, Point b, float thickness = 1) { return Linecast(a.X, a.Y, b.X, b.Y, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
+        public Yield Linecast(Point a, Vector2 b, float thickness = 1) { return Linecast(a.X, a.Y, b.X, b.Y, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
+        public Yield Linecast(Vector2 a, Point b, float thickness = 1) { return Linecast(a.X, a.Y, b.X, b.Y, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
+        public Yield Linecast(float aX, float aY, Point b, float thickness = 1) { return Linecast(aX, aY, b.X, b.Y, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
+        public Yield Linecast(Point a, float bX, float bY, float thickness = 1) { return Linecast(a.X, a.Y, bX, bY, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
+        public Yield Linecast(Vector2 a, Vector2 b, float thickness = 1) { return Linecast(a.X, a.Y, b.X, b.Y, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
+        public Yield Linecast(float aX, float aY, Vector2 b, float thickness = 1) { return Linecast(aX, aY, b.X, b.Y, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
+        public Yield Linecast(Vector2 a, float bX, float bY, float thickness = 1) { return Linecast(a.X, a.Y, bX, bY, thickness); }
+        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
+        public Yield Linecast(float x1, float y1, float x2, float y2, float thickness = 1) {
+            var rotation = MathF.Atan2(y2, x2);
+            return Query(x1, y1, float.MaxValue, thickness, rotation, 0, thickness * .5f);
+        }
+        /// <summary>Query and return a disposable collection of ids that have been added.</summary>
+        public Yield All {
+            get {
+                var yield = new Yield(_item.Length);
+                var totalItems = 0;
+                for (var i = 0; i < _item.Length; i++)
+                    if (_item[i].Next != -2)
+                        yield._items[totalItems++] = i;
+                yield.Count = totalItems;
+                return yield;
+            }
+        }
+
+        int FindNode(float x, float y, int i = 0) {
+            ref readonly var n = ref _node[i];
+            while (n.Child < 0) {
+                i = x > n.CenterX ?
+                    y > n.CenterY ?
+                    Math.Abs(n.Child) + 3 :
+                    Math.Abs(n.Child) + 1 :
+                    y > n.CenterY ?
+                    Math.Abs(n.Child) + 2 :
+                    Math.Abs(n.Child);
+                n = ref _node[i];
+            }
+            return i;
+        }
+
+        void Subdivide(int node) {
+            ref var n = ref _node[node];
+            var d = (byte)(n.Depth + 1);
+            var dp2 = 1 << d;
+            float w = _width * .5f / dp2,
+                h = _height * .5f / dp2;
+            Node nw = new Node(n.CenterX - w, n.CenterY - h, d),
+                ne = new Node(n.CenterX + w, nw.CenterY, d),
+                sw = new Node(nw.CenterX, n.CenterY + h, d),
+                se = new Node(ne.CenterX, sw.CenterY, d);
+            int i = n.Child - 1;
+            n.Child = -_freeNode;
+            _node[_freeNode++] = nw;
+            _node[_freeNode++] = ne;
+            _node[_freeNode++] = sw;
+            _node[_freeNode++] = se;
+            do {
+                ref var item = ref _item[i];
+                var next = item.Next;
+                item.Next = -1;
+                n = ref _node[FindNode(item.X + (item.Width * .5f), item.Y + (item.Height * .5f), node)];
+                if (n.Child == 0)
+                    n.Child = i + 1;
+                else {
+                    var idx = n.Child - 1;
+                    while (_item[idx].Next != -1)
+                        idx = _item[idx].Next;
+                    ref var j = ref _item[idx];
+                    j.Next = i;
+                }
+                i = next;
+            } while (i != -1);
+        }
     }
 }
