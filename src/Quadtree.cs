@@ -213,14 +213,14 @@ namespace Dcrew.Spatial {
                         ne = _node[c + 1],
                         sw = _node[c + 2],
                         se = _node[c + 3];
-                    Span<float> nwRect = nw.Child == 0 ? stackalloc float[4] { float.MaxValue, float.MaxValue, float.MinValue, float.MinValue } : stackalloc float[4] { nw.X, nw.Y, nw.X + nw.Width, nw.Y + nw.Height },
-                        neRect = ne.Child == 0 ? stackalloc float[4] { float.MaxValue, float.MaxValue, float.MinValue, float.MinValue } : stackalloc float[4] { ne.X, ne.Y, ne.X + ne.Width, ne.Y + ne.Height },
-                        swRect = sw.Child == 0 ? stackalloc float[4] { float.MaxValue, float.MaxValue, float.MinValue, float.MinValue } : stackalloc float[4] { sw.X, sw.Y, sw.X + sw.Width, sw.Y + sw.Height },
-                        seRect = se.Child == 0 ? stackalloc float[4] { float.MaxValue, float.MaxValue, float.MinValue, float.MinValue } : stackalloc float[4] { se.X, se.Y, se.X + se.Width, se.Y + se.Height };
+                    Vector2 nwRect = nw.Child == 0 ? new Vector2(float.MinValue, float.MinValue) : new Vector2(nw.X + nw.Width, nw.Y + nw.Height),
+                        neRect = ne.Child == 0 ? new Vector2(float.MinValue, float.MinValue) : new Vector2(ne.X + ne.Width, ne.Y + ne.Height),
+                        swRect = sw.Child == 0 ? new Vector2(float.MinValue, float.MinValue) : new Vector2(sw.X + sw.Width, sw.Y + sw.Height),
+                        seRect = se.Child == 0 ? new Vector2(float.MinValue, float.MinValue) : new Vector2(se.X + se.Width, se.Y + se.Height);
                     n.X = MathF.Min(nw.X, MathF.Min(sw.X, MathF.Min(ne.X, se.X)));
                     n.Y = MathF.Min(nw.Y, MathF.Min(ne.Y, MathF.Min(sw.Y, se.Y)));
-                    n.Width = MathF.Max(neRect[2], MathF.Max(seRect[2], MathF.Max(nwRect[2], swRect[2]))) - n.X;
-                    n.Height = MathF.Max(swRect[3], MathF.Max(seRect[3], MathF.Max(nwRect[3], neRect[3]))) - n.Y;
+                    n.Width = MathF.Max(neRect.X, MathF.Max(seRect.X, MathF.Max(nwRect.X, swRect.X))) - n.X;
+                    n.Height = MathF.Max(swRect.Y, MathF.Max(seRect.Y, MathF.Max(nwRect.Y, neRect.Y))) - n.Y;
                 } else if (n.Child > 0) {
                     int items = 0;
                     float minX = float.MaxValue,
