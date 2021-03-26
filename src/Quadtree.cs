@@ -26,7 +26,7 @@ namespace Dcrew.Spatial {
 
         struct TreeItem {
             public float X, Y, Width, Height;
-            public int Next;
+            public int Next, Node;
         }
 
         /// <summary>A collection of int ids.</summary>
@@ -119,36 +119,47 @@ namespace Dcrew.Spatial {
             ref var item = ref _item[i];
             var newNode = FindNode(x + (width * .5f), y + (height * .5f));
             if (item.Next != -2) {
-                var oldNode = FindNode(item.X + (item.Width * .5f), item.Y + (item.Height * .5f));
-                if (newNode == oldNode) {
+                if (newNode == item.Node) {
                     item.X = x;
                     item.Y = y;
                     item.Width = width;
                     item.Height = height;
                     return;
                 }
-                Remove(i, oldNode);
+                ref var n = ref _node[item.Node];
+                int o = n.Child - 1;
+                if (o == i) {
+                    n.Child = item.Next + 1;
+                } else {
+                    int prev;
+                    do {
+                        prev = o;
+                        o = _item[o].Next;
+                    } while (o != i);
+                    ref var j = ref _item[prev];
+                    j.Next = item.Next;
+                }
             }
             item.Next = -1;
             item.X = x;
             item.Y = y;
             item.Width = width;
             item.Height = height;
+            item.Node = newNode;
             ref var node = ref _node[newNode];
             if (node.Child == 0)
                 node.Child = i + 1;
             else {
-                var idx = node.Child - 1;
-                while (_item[idx].Next != -1)
-                    idx = _item[idx].Next;
-                ref var j = ref _item[idx];
+                ref var j = ref _item[node.Child - 1];
+                while (j.Next != -1)
+                    j = ref _item[j.Next];
                 j.Next = i;
             }
         }
         /// <summary>Remove id <paramref name="i"/>, no re-ordering, <paramref name="i"/> will be available for you to re-use.</summary>
-        public void Remove(int i, int nodeStart = 0) {
+        public void Remove(int i) {
             ref var item = ref _item[i];
-            ref var node = ref _node[FindNode(item.X + (item.Width * .5f), item.Y + (item.Height * .5f), nodeStart)];
+            ref var node = ref _node[item.Node];
             int o = node.Child - 1;
             if (o == i) {
                 node.Child = item.Next + 1;
@@ -203,6 +214,10 @@ namespace Dcrew.Spatial {
             int ni = 0;
             ref var n = ref _node[ni];
             do {
+                n.X = float.MaxValue;
+                n.Y = float.MaxValue;
+                n.Width = float.MinValue;
+                n.Height = float.MinValue;
                 if (n.Child < 0) {
                     int c = Math.Abs(n.Child);
                     _toProcess.Push(c);
@@ -213,38 +228,68 @@ namespace Dcrew.Spatial {
                         ne = _node[c + 1],
                         sw = _node[c + 2],
                         se = _node[c + 3];
-                    Vector2 nwRect = nw.Child == 0 ? new Vector2(float.MinValue, float.MinValue) : new Vector2(nw.X + nw.Width, nw.Y + nw.Height),
-                        neRect = ne.Child == 0 ? new Vector2(float.MinValue, float.MinValue) : new Vector2(ne.X + ne.Width, ne.Y + ne.Height),
-                        swRect = sw.Child == 0 ? new Vector2(float.MinValue, float.MinValue) : new Vector2(sw.X + sw.Width, sw.Y + sw.Height),
-                        seRect = se.Child == 0 ? new Vector2(float.MinValue, float.MinValue) : new Vector2(se.X + se.Width, se.Y + se.Height);
-                    n.X = MathF.Min(nw.X, MathF.Min(sw.X, MathF.Min(ne.X, se.X)));
-                    n.Y = MathF.Min(nw.Y, MathF.Min(ne.Y, MathF.Min(sw.Y, se.Y)));
-                    n.Width = MathF.Max(neRect.X, MathF.Max(seRect.X, MathF.Max(nwRect.X, swRect.X))) - n.X;
-                    n.Height = MathF.Max(swRect.Y, MathF.Max(seRect.Y, MathF.Max(nwRect.Y, neRect.Y))) - n.Y;
+                    if (nw.Child != 0) {
+                        if (nw.X < n.X)
+                            n.X = nw.X;
+                        if (nw.Y < n.Y)
+                            n.Y = nw.Y;
+                        if (nw.X + nw.Width > n.Width)
+                            n.Width = nw.X + nw.Width;
+                        if (nw.Y + nw.Height > n.Height)
+                            n.Height = nw.Y + nw.Height;
+                    }
+                    if (ne.Child != 0) {
+                        if (ne.X < n.X)
+                            n.X = ne.X;
+                        if (ne.Y < n.Y)
+                            n.Y = ne.Y;
+                        if (ne.X + ne.Width > n.Width)
+                            n.Width = ne.X + ne.Width;
+                        if (ne.Y + ne.Height > n.Height)
+                            n.Height = ne.Y + ne.Height;
+                    }
+                    if (sw.Child != 0) {
+                        if (sw.X < n.X)
+                            n.X = sw.X;
+                        if (sw.Y < n.Y)
+                            n.Y = sw.Y;
+                        if (sw.X + sw.Width > n.Width)
+                            n.Width = sw.X + sw.Width;
+                        if (sw.Y + sw.Height > n.Height)
+                            n.Height = sw.Y + sw.Height;
+                    }
+                    if (se.Child != 0) {
+                        if (se.X < n.X)
+                            n.X = se.X;
+                        if (se.Y < n.Y)
+                            n.Y = se.Y;
+                        if (se.X + se.Width > n.Width)
+                            n.Width = se.X + se.Width;
+                        if (se.Y + se.Height > n.Height)
+                            n.Height = se.Y + se.Height;
+                    }
                 } else if (n.Child > 0) {
                     int items = 0;
-                    float minX = float.MaxValue,
-                        minY = float.MaxValue,
-                        maxX = float.MinValue,
-                        maxY = float.MinValue;
                     ref readonly var i = ref _item[n.Child - 1];
                     do {
                         items++;
-                        minX = MathF.Min(minX, i.X);
-                        minY = MathF.Min(minY, i.Y);
-                        maxX = MathF.Max(maxX, i.X + i.Width);
-                        maxY = MathF.Max(maxY, i.Y + i.Height);
+                        if (i.X < n.X)
+                            n.X = i.X;
+                        if (i.Y < n.Y)
+                            n.Y = i.Y;
+                        if (i.X + i.Width > n.Width)
+                            n.Width = i.X + i.Width;
+                        if (i.Y + i.Height > n.Height)
+                            n.Height = i.Y + i.Height;
                         if (i.Next == -1)
                             break;
                         i = ref _item[i.Next];
                     } while (true);
-                    n.X = minX;
-                    n.Y = minY;
-                    n.Width = maxX - minX;
-                    n.Height = maxY - minY;
                     if (items >= 8 && n.Depth < _maxDepth)
                         Subdivide(ni);
                 }
+                n.Width -= n.X;
+                n.Height -= n.Y;
                 if (_toProcess.Count <= 0)
                     break;
                 ni = _toProcess.Pop();
@@ -535,14 +580,15 @@ namespace Dcrew.Spatial {
                 ref var item = ref _item[i];
                 var next = item.Next;
                 item.Next = -1;
-                n = ref _node[FindNode(item.X + (item.Width * .5f), item.Y + (item.Height * .5f), node)];
+                int ni = FindNode(item.X + (item.Width * .5f), item.Y + (item.Height * .5f), node);
+                n = ref _node[ni];
+                item.Node = ni;
                 if (n.Child == 0)
                     n.Child = i + 1;
                 else {
-                    var idx = n.Child - 1;
-                    while (_item[idx].Next != -1)
-                        idx = _item[idx].Next;
-                    ref var j = ref _item[idx];
+                    ref var j = ref _item[n.Child - 1];
+                    while (j.Next != -1)
+                        j = ref _item[j.Next];
                     j.Next = i;
                 }
                 i = next;
