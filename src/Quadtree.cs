@@ -1,24 +1,25 @@
-﻿using Microsoft.Xna.Framework;
-using System;
+﻿using System;
 using System.Buffers;
-using System.Collections;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework;
 
 namespace Dcrew.Spatial {
     public struct Quadtree {
         struct Node {
             public float X, Y, Width, Height;
             public readonly float CenterX, CenterY;
+            public readonly int Parent;
             public int Child;
             public readonly byte Depth;
 
-            public Node(float x, float y, byte depth) {
-                X = 0;
-                Y = 0;
-                Width = 0;
-                Height = 0;
+            public Node(float x, float y, byte depth, int parent) {
+                X = float.MaxValue;
+                Y = float.MaxValue;
+                Width = float.MinValue;
+                Height = float.MinValue;
                 CenterX = x;
                 CenterY = y;
+                Parent = parent;
                 Child = 0;
                 Depth = depth;
             }
@@ -29,38 +30,13 @@ namespace Dcrew.Spatial {
             public int Next, Node;
         }
 
-        /// <summary>A collection of int ids.</summary>
-        public struct Yield : IEnumerator<int>, IEnumerable<int>, IDisposable {
-            internal int[] _items;
-            int _cur;
-
-            public int Count { get; internal set; }
-
-            public int Current => _items[_cur];
-            object IEnumerator.Current => _items[_cur];
-
-            public Yield(int count) {
-                _items = ArrayPool<int>.Shared.Rent(count);
-                Count = 0;
-                _cur = -1;
-            }
-
-            public void Dispose() { ArrayPool<int>.Shared.Return(_items); }
-
-            public bool MoveNext() { return ++_cur < Count; }
-            public void Reset() { _cur = -1; }
-
-            public Yield GetEnumerator() { return this; }
-            IEnumerator<int> IEnumerable<int>.GetEnumerator() { return this; }
-            IEnumerator IEnumerable.GetEnumerator() { return this; }
-        }
-
         float _x, _y, _width, _height;
         readonly byte _maxDepth;
-        Node[] _node;
+        readonly Node[] _node;
         int _freeNode;
         TreeItem[] _item;
         readonly Stack<int> _toProcess;
+        readonly HashSet<int> _nodesToResize;
         float _newX, _newY, _newWidth, _newHeight;
 
         /// <summary>Get/set the max items that can be set.</summary>
@@ -88,12 +64,13 @@ namespace Dcrew.Spatial {
             for (var i = 0; i < maxDepth; i++)
                 nodes += (int)Math.Pow(4, i + 1);
             _node = new Node[nodes];
-            _node[0] = new Node(x + (width * .5f), y + (height * .5f), 0);
+            _node[0] = new Node(x + (width * .5f), y + (height * .5f), 0, -1);
             _freeNode = 1;
             _item = new TreeItem[maxItems];
             for (var i = 0; i < _item.Length; i++)
                 _item[i].Next = -2;
             _toProcess = new Stack<int>();
+            _nodesToResize = new HashSet<int>();
         }
 
         /// <summary>Return the latest bounds of item <paramref name="i"/>.</summary>
@@ -119,14 +96,15 @@ namespace Dcrew.Spatial {
             ref var item = ref _item[i];
             var newNode = FindNode(x + (width * .5f), y + (height * .5f));
             if (item.Next != -2) {
+                ref var n = ref _node[item.Node];
                 if (newNode == item.Node) {
                     item.X = x;
                     item.Y = y;
                     item.Width = width;
                     item.Height = height;
+                    PropagateUnion(ref n, x, y, width, height);
                     return;
                 }
-                ref var n = ref _node[item.Node];
                 int o = n.Child - 1;
                 if (o == i) {
                     n.Child = item.Next + 1;
@@ -147,14 +125,21 @@ namespace Dcrew.Spatial {
             item.Height = height;
             item.Node = newNode;
             ref var node = ref _node[newNode];
+            int itemCount = 1;
             if (node.Child == 0)
                 node.Child = i + 1;
             else {
                 ref var j = ref _item[node.Child - 1];
-                while (j.Next != -1)
+                itemCount++;
+                while (j.Next != -1) {
                     j = ref _item[j.Next];
+                    itemCount++;
+                }
                 j.Next = i;
             }
+            if (itemCount >= 8 && node.Depth < _maxDepth)
+                _nodesToResize.Add(newNode);
+            PropagateUnion(ref node, x, y, width, height);
         }
         /// <summary>Remove id <paramref name="i"/>, no re-ordering, <paramref name="i"/> will be available for you to re-use.</summary>
         public void Remove(int i) {
@@ -211,99 +196,18 @@ namespace Dcrew.Spatial {
                 }
                 ArrayPool<int>.Shared.Return(toAdd);
             }
-            int ni = 0;
-            ref var n = ref _node[ni];
-            do {
-                n.X = float.MaxValue;
-                n.Y = float.MaxValue;
-                n.Width = float.MinValue;
-                n.Height = float.MinValue;
-                if (n.Child < 0) {
-                    int c = Math.Abs(n.Child);
-                    _toProcess.Push(c);
-                    _toProcess.Push(c + 1);
-                    _toProcess.Push(c + 2);
-                    _toProcess.Push(c + 3);
-                    Node nw = _node[c],
-                        ne = _node[c + 1],
-                        sw = _node[c + 2],
-                        se = _node[c + 3];
-                    if (nw.Child != 0) {
-                        if (nw.X < n.X)
-                            n.X = nw.X;
-                        if (nw.Y < n.Y)
-                            n.Y = nw.Y;
-                        if (nw.X + nw.Width > n.Width)
-                            n.Width = nw.X + nw.Width;
-                        if (nw.Y + nw.Height > n.Height)
-                            n.Height = nw.Y + nw.Height;
-                    }
-                    if (ne.Child != 0) {
-                        if (ne.X < n.X)
-                            n.X = ne.X;
-                        if (ne.Y < n.Y)
-                            n.Y = ne.Y;
-                        if (ne.X + ne.Width > n.Width)
-                            n.Width = ne.X + ne.Width;
-                        if (ne.Y + ne.Height > n.Height)
-                            n.Height = ne.Y + ne.Height;
-                    }
-                    if (sw.Child != 0) {
-                        if (sw.X < n.X)
-                            n.X = sw.X;
-                        if (sw.Y < n.Y)
-                            n.Y = sw.Y;
-                        if (sw.X + sw.Width > n.Width)
-                            n.Width = sw.X + sw.Width;
-                        if (sw.Y + sw.Height > n.Height)
-                            n.Height = sw.Y + sw.Height;
-                    }
-                    if (se.Child != 0) {
-                        if (se.X < n.X)
-                            n.X = se.X;
-                        if (se.Y < n.Y)
-                            n.Y = se.Y;
-                        if (se.X + se.Width > n.Width)
-                            n.Width = se.X + se.Width;
-                        if (se.Y + se.Height > n.Height)
-                            n.Height = se.Y + se.Height;
-                    }
-                } else if (n.Child > 0) {
-                    int items = 0;
-                    ref readonly var i = ref _item[n.Child - 1];
-                    do {
-                        items++;
-                        if (i.X < n.X)
-                            n.X = i.X;
-                        if (i.Y < n.Y)
-                            n.Y = i.Y;
-                        if (i.X + i.Width > n.Width)
-                            n.Width = i.X + i.Width;
-                        if (i.Y + i.Height > n.Height)
-                            n.Height = i.Y + i.Height;
-                        if (i.Next == -1)
-                            break;
-                        i = ref _item[i.Next];
-                    } while (true);
-                    if (items >= 8 && n.Depth < _maxDepth)
-                        Subdivide(ni);
-                }
-                n.Width -= n.X;
-                n.Height -= n.Y;
-                if (_toProcess.Count <= 0)
-                    break;
-                ni = _toProcess.Pop();
-                n = ref _node[ni];
-            } while (true);
+            foreach (int j in _nodesToResize)
+                Subdivide(j);
+            _nodesToResize.Clear();
         }
 
-        /// <summary>Query and return a disposable collection of ids that intersect the given rectangle.</summary>
-        public Yield Query(Rectangle rect) { return Query(rect.X, rect.Y, rect.Width, rect.Height); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given rectangle.</summary>
-        public Yield Query(float x, float y, float width, float height) {
+        /// <summary>Query and return a collection of ids that intersect the given rectangle.</summary>
+        public ReadOnlySpan<int> Query(Rectangle rect) { return Query(rect.X, rect.Y, rect.Width, rect.Height); }
+        /// <summary>Query and return a collection of ids that intersect the given rectangle.</summary>
+        public ReadOnlySpan<int> Query(float x, float y, float width, float height) {
             float right = x + width,
                 bottom = y + height;
-            var yield = new Yield(_item.Length);
+            var yield = ArrayPool<int>.Shared.Rent(_item.Length);
             var totalItems = 0;
             ref readonly var n = ref _node[0];
             do {
@@ -313,20 +217,20 @@ namespace Dcrew.Spatial {
                         ne = _node[c + 1],
                         sw = _node[c + 2],
                         se = _node[c + 3];
-                    if (nw.X < right && nw.X + nw.Width > x && nw.Y < bottom && nw.Y + nw.Height > y)
+                    if (nw.X < right && x < nw.X + nw.Width && nw.Y < bottom && y < nw.Y + nw.Height)
                         _toProcess.Push(c);
-                    if (ne.X < right && ne.X + ne.Width > x && ne.Y < bottom && ne.Y + ne.Height > y)
+                    if (ne.X < right && x < ne.X + ne.Width && ne.Y < bottom && y < ne.Y + ne.Height)
                         _toProcess.Push(c + 1);
-                    if (sw.X < right && sw.X + sw.Width > x && sw.Y < bottom && sw.Y + sw.Height > y)
+                    if (sw.X < right && x < sw.X + sw.Width && sw.Y < bottom && y < sw.Y + sw.Height)
                         _toProcess.Push(c + 2);
-                    if (se.X < right && se.X + se.Width > x && se.Y < bottom && se.Y + se.Height > y)
+                    if (se.X < right && x < se.X + se.Width && se.Y < bottom && y < se.Y + se.Height)
                         _toProcess.Push(c + 3);
                 } else if (n.Child > 0) {
                     int i = n.Child - 1;
                     do {
                         ref readonly var item = ref _item[i];
-                        if (item.X < right && item.X + item.Width > x && item.Y < bottom && item.Y + item.Height > y)
-                            yield._items[totalItems++] = i;
+                        if (item.X < right && x < item.X + item.Width && item.Y < bottom && y < item.Y + item.Height)
+                            yield[totalItems++] = i;
                         i = item.Next;
                     } while (i != -1);
                 }
@@ -334,17 +238,17 @@ namespace Dcrew.Spatial {
                     break;
                 n = ref _node[_toProcess.Pop()];
             } while (true);
-            yield.Count = totalItems;
-            return yield;
+            ArrayPool<int>.Shared.Return(yield);
+            return new ReadOnlySpan<int>(yield, 0, totalItems);
         }
-        /// <summary>Query and return a disposable collection of ids that intersect the given rectangle.</summary>
-        public Yield Query(Rectangle rect, float rotation, float originX, float originY) { return Query(rect.X, rect.Y, rect.Width, rect.Height, rotation, originX, originY); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given rectangle.</summary>
-        public Yield Query(Rectangle rect, float rotation, Vector2 origin) { return Query(rect.X, rect.Y, rect.Width, rect.Height, rotation, origin.X, origin.Y); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given rectangle.</summary>
-        public Yield Query(float x, float y, float width, float height, float rotation, Vector2 origin) { return Query(x, y, width, height, rotation, origin.X, origin.Y); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given rectangle.</summary>
-        public Yield Query(float x, float y, float width, float height, float rotation, float originX, float originY) {
+        /// <summary>Query and return a collection of ids that intersect the given rectangle.</summary>
+        public ReadOnlySpan<int> Query(Rectangle rect, float rotation, float originX, float originY) { return Query(rect.X, rect.Y, rect.Width, rect.Height, rotation, originX, originY); }
+        /// <summary>Query and return a collection of ids that intersect the given rectangle.</summary>
+        public ReadOnlySpan<int> Query(Rectangle rect, float rotation, Vector2 origin) { return Query(rect.X, rect.Y, rect.Width, rect.Height, rotation, origin.X, origin.Y); }
+        /// <summary>Query and return a collection of ids that intersect the given rectangle.</summary>
+        public ReadOnlySpan<int> Query(float x, float y, float width, float height, float rotation, Vector2 origin) { return Query(x, y, width, height, rotation, origin.X, origin.Y); }
+        /// <summary>Query and return a collection of ids that intersect the given rectangle.</summary>
+        public ReadOnlySpan<int> Query(float x, float y, float width, float height, float rotation, float originX, float originY) {
             float cos = MathF.Cos(rotation),
                 sin = MathF.Sin(rotation),
                 sx = -originX,
@@ -399,7 +303,7 @@ namespace Dcrew.Spatial {
             }
             float right = x + width,
                 bottom = y + height;
-            var yield = new Yield(_item.Length);
+            var yield = ArrayPool<int>.Shared.Rent(_item.Length);
             var totalItems = 0;
             ref readonly var n = ref _node[0];
             do {
@@ -422,7 +326,7 @@ namespace Dcrew.Spatial {
                     do {
                         ref readonly var item = ref _item[i];
                         if (Intersects((item.X, item.Y, item.Width, item.Height)))
-                            yield._items[totalItems++] = i;
+                            yield[totalItems++] = i;
                         i = item.Next;
                     } while (i != -1);
                 }
@@ -430,15 +334,15 @@ namespace Dcrew.Spatial {
                     break;
                 n = ref _node[_toProcess.Pop()];
             } while (true);
-            yield.Count = totalItems;
-            return yield;
+            ArrayPool<int>.Shared.Return(yield);
+            return new ReadOnlySpan<int>(yield, 0, totalItems);
         }
-        /// <summary>Query and return a disposable collection of ids that intersect the given point/radius.</summary>
-        public Yield Query(Point p, float radius = 1) { return Query(p.X, p.Y, radius); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given point/radius.</summary>
-        public Yield Query(Vector2 p, float radius = 1) { return Query(p.X, p.Y, radius); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given point/radius.</summary>
-        public Yield Query(float x, float y, float radius = 1) {
+        /// <summary>Query and return a collection of ids that intersect the given point/radius.</summary>
+        public ReadOnlySpan<int> Query(Point p, float radius = 1) { return Query(p.X, p.Y, radius); }
+        /// <summary>Query and return a collection of ids that intersect the given point/radius.</summary>
+        public ReadOnlySpan<int> Query(Vector2 p, float radius = 1) { return Query(p.X, p.Y, radius); }
+        /// <summary>Query and return a collection of ids that intersect the given point/radius.</summary>
+        public ReadOnlySpan<int> Query(float x, float y, float radius = 1) {
             bool Intersects((float x, float y, float width, float height) rect) {
                 float dx = MathF.Abs(x - (rect.x + (rect.width * .5f))),
                     dy = MathF.Abs(y - (rect.y + (rect.height * .5f)));
@@ -452,7 +356,7 @@ namespace Dcrew.Spatial {
                 fy *= fy;
                 return fx + fy <= radius * radius;
             }
-            var yield = new Yield(_item.Length);
+            var yield = ArrayPool<int>.Shared.Rent(_item.Length);
             var totalItems = 0;
             ref readonly var n = ref _node[0];
             do {
@@ -475,7 +379,7 @@ namespace Dcrew.Spatial {
                     do {
                         ref readonly var item = ref _item[i];
                         if (Intersects((item.X, item.Y, item.Width, item.Height)))
-                            yield._items[totalItems++] = i;
+                            yield[totalItems++] = i;
                         i = item.Next;
                     } while (i != -1);
                 }
@@ -483,65 +387,65 @@ namespace Dcrew.Spatial {
                     break;
                 n = ref _node[_toProcess.Pop()];
             } while (true);
-            yield.Count = totalItems;
-            return yield;
+            ArrayPool<int>.Shared.Return(yield);
+            return new ReadOnlySpan<int>(yield, 0, totalItems);
         }
-        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
-        public Yield Raycast(Vector2 position, Point direction, float thickness = 1) { return Raycast(position.X, position.Y, direction.X, direction.Y, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
-        public Yield Raycast(Point position, Point direction, float thickness = 1) { return Raycast(position.X, position.Y, direction.X, direction.Y, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
-        public Yield Raycast(Point position, Vector2 direction, float thickness = 1) { return Raycast(position.X, position.Y, direction.X, direction.Y, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
-        public Yield Raycast(Point position, float directionX, float directionY, float thickness = 1) { return Raycast(position.X, position.Y, directionX, directionY, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
-        public Yield Raycast(Point position, float rotation, float thickness = 1) { return Raycast(position.X, position.Y, rotation, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
-        public Yield Raycast(Vector2 position, Vector2 direction, float thickness = 1) { return Raycast(position.X, position.Y, direction.X, direction.Y, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
-        public Yield Raycast(Vector2 position, float directionX, float directionY, float thickness = 1) { return Raycast(position.X, position.Y, directionX, directionY, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
-        public Yield Raycast(Vector2 position, float rotation, float thickness = 1) { return Raycast(position.X, position.Y, rotation, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
-        public Yield Raycast(float x, float y, Vector2 direction, float thickness = 1) { return Raycast(x, y, direction.X, direction.Y, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
-        public Yield Raycast(float x, float y, float directionX, float directionY, float thickness = 1) {
+        /// <summary>Query and return a collection of ids that intersect the given ray.</summary>
+        public ReadOnlySpan<int> Raycast(Vector2 position, Point direction, float thickness = 1) { return Raycast(position.X, position.Y, direction.X, direction.Y, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given ray.</summary>
+        public ReadOnlySpan<int> Raycast(Point position, Point direction, float thickness = 1) { return Raycast(position.X, position.Y, direction.X, direction.Y, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given ray.</summary>
+        public ReadOnlySpan<int> Raycast(Point position, Vector2 direction, float thickness = 1) { return Raycast(position.X, position.Y, direction.X, direction.Y, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given ray.</summary>
+        public ReadOnlySpan<int> Raycast(Point position, float directionX, float directionY, float thickness = 1) { return Raycast(position.X, position.Y, directionX, directionY, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given ray.</summary>
+        public ReadOnlySpan<int> Raycast(Point position, float rotation, float thickness = 1) { return Raycast(position.X, position.Y, rotation, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given ray.</summary>
+        public ReadOnlySpan<int> Raycast(Vector2 position, Vector2 direction, float thickness = 1) { return Raycast(position.X, position.Y, direction.X, direction.Y, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given ray.</summary>
+        public ReadOnlySpan<int> Raycast(Vector2 position, float directionX, float directionY, float thickness = 1) { return Raycast(position.X, position.Y, directionX, directionY, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given ray.</summary>
+        public ReadOnlySpan<int> Raycast(Vector2 position, float rotation, float thickness = 1) { return Raycast(position.X, position.Y, rotation, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given ray.</summary>
+        public ReadOnlySpan<int> Raycast(float x, float y, Vector2 direction, float thickness = 1) { return Raycast(x, y, direction.X, direction.Y, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given ray.</summary>
+        public ReadOnlySpan<int> Raycast(float x, float y, float directionX, float directionY, float thickness = 1) {
             var rotation = MathF.Atan2(directionY, directionX);
             return Query(x, y, float.MaxValue, thickness, rotation, 0, thickness * .5f);
         }
-        /// <summary>Query and return a disposable collection of ids that intersect the given ray.</summary>
-        public Yield Raycast(float x, float y, float rotation, float thickness = 1) { return Query(x, y, float.MaxValue, thickness, rotation, 0, thickness * .5f); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
-        public Yield Linecast(Point a, Point b, float thickness = 1) { return Linecast(a.X, a.Y, b.X, b.Y, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
-        public Yield Linecast(Point a, Vector2 b, float thickness = 1) { return Linecast(a.X, a.Y, b.X, b.Y, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
-        public Yield Linecast(Vector2 a, Point b, float thickness = 1) { return Linecast(a.X, a.Y, b.X, b.Y, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
-        public Yield Linecast(float aX, float aY, Point b, float thickness = 1) { return Linecast(aX, aY, b.X, b.Y, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
-        public Yield Linecast(Point a, float bX, float bY, float thickness = 1) { return Linecast(a.X, a.Y, bX, bY, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
-        public Yield Linecast(Vector2 a, Vector2 b, float thickness = 1) { return Linecast(a.X, a.Y, b.X, b.Y, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
-        public Yield Linecast(float aX, float aY, Vector2 b, float thickness = 1) { return Linecast(aX, aY, b.X, b.Y, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
-        public Yield Linecast(Vector2 a, float bX, float bY, float thickness = 1) { return Linecast(a.X, a.Y, bX, bY, thickness); }
-        /// <summary>Query and return a disposable collection of ids that intersect the given line.</summary>
-        public Yield Linecast(float x1, float y1, float x2, float y2, float thickness = 1) {
+        /// <summary>Query and return a collection of ids that intersect the given ray.</summary>
+        public ReadOnlySpan<int> Raycast(float x, float y, float rotation, float thickness = 1) { return Query(x, y, float.MaxValue, thickness, rotation, 0, thickness * .5f); }
+        /// <summary>Query and return a collection of ids that intersect the given line.</summary>
+        public ReadOnlySpan<int> Linecast(Point a, Point b, float thickness = 1) { return Linecast(a.X, a.Y, b.X, b.Y, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given line.</summary>
+        public ReadOnlySpan<int> Linecast(Point a, Vector2 b, float thickness = 1) { return Linecast(a.X, a.Y, b.X, b.Y, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given line.</summary>
+        public ReadOnlySpan<int> Linecast(Vector2 a, Point b, float thickness = 1) { return Linecast(a.X, a.Y, b.X, b.Y, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given line.</summary>
+        public ReadOnlySpan<int> Linecast(float aX, float aY, Point b, float thickness = 1) { return Linecast(aX, aY, b.X, b.Y, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given line.</summary>
+        public ReadOnlySpan<int> Linecast(Point a, float bX, float bY, float thickness = 1) { return Linecast(a.X, a.Y, bX, bY, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given line.</summary>
+        public ReadOnlySpan<int> Linecast(Vector2 a, Vector2 b, float thickness = 1) { return Linecast(a.X, a.Y, b.X, b.Y, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given line.</summary>
+        public ReadOnlySpan<int> Linecast(float aX, float aY, Vector2 b, float thickness = 1) { return Linecast(aX, aY, b.X, b.Y, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given line.</summary>
+        public ReadOnlySpan<int> Linecast(Vector2 a, float bX, float bY, float thickness = 1) { return Linecast(a.X, a.Y, bX, bY, thickness); }
+        /// <summary>Query and return a collection of ids that intersect the given line.</summary>
+        public ReadOnlySpan<int> Linecast(float x1, float y1, float x2, float y2, float thickness = 1) {
             var rotation = MathF.Atan2(y2, x2);
             return Query(x1, y1, float.MaxValue, thickness, rotation, 0, thickness * .5f);
         }
-        /// <summary>Query and return a disposable collection of ids that have been added.</summary>
-        public Yield All {
+        /// <summary>Query and return a collection of ids that have been added.</summary>
+        public ReadOnlySpan<int> All {
             get {
-                var yield = new Yield(_item.Length);
+                var yield = ArrayPool<int>.Shared.Rent(_item.Length);
                 var totalItems = 0;
                 for (var i = 0; i < _item.Length; i++)
                     if (_item[i].Next != -2)
-                        yield._items[totalItems++] = i;
-                yield.Count = totalItems;
-                return yield;
+                        yield[totalItems++] = i;
+                ArrayPool<int>.Shared.Return(yield);
+                return new ReadOnlySpan<int>(yield, 0, totalItems);
             }
         }
 
@@ -566,10 +470,10 @@ namespace Dcrew.Spatial {
             var dp2 = 1 << d;
             float w = _width * .5f / dp2,
                 h = _height * .5f / dp2;
-            Node nw = new Node(n.CenterX - w, n.CenterY - h, d),
-                ne = new Node(n.CenterX + w, nw.CenterY, d),
-                sw = new Node(nw.CenterX, n.CenterY + h, d),
-                se = new Node(ne.CenterX, sw.CenterY, d);
+            Node nw = new Node(n.CenterX - w, n.CenterY - h, d, node),
+                ne = new Node(n.CenterX + w, nw.CenterY, d, node),
+                sw = new Node(nw.CenterX, n.CenterY + h, d, node),
+                se = new Node(ne.CenterX, sw.CenterY, d, node);
             int i = n.Child - 1;
             n.Child = -_freeNode;
             _node[_freeNode++] = nw;
@@ -577,22 +481,58 @@ namespace Dcrew.Spatial {
             _node[_freeNode++] = sw;
             _node[_freeNode++] = se;
             do {
+                if (i == -1)
+                    break;
                 ref var item = ref _item[i];
-                var next = item.Next;
+                int next = item.Next;
                 item.Next = -1;
                 int ni = FindNode(item.X + (item.Width * .5f), item.Y + (item.Height * .5f), node);
                 n = ref _node[ni];
                 item.Node = ni;
+                int itemCount = 1;
                 if (n.Child == 0)
                     n.Child = i + 1;
                 else {
                     ref var j = ref _item[n.Child - 1];
-                    while (j.Next != -1)
+                    itemCount++;
+                    while (j.Next != -1) {
                         j = ref _item[j.Next];
+                        itemCount++;
+                    }
                     j.Next = i;
                 }
                 i = next;
+                PropagateUnion(ref n, item.X, item.Y, item.Width, item.Height);
+                if (itemCount >= 8 && n.Depth < _maxDepth)
+                    Subdivide(ni);
             } while (i != -1);
+        }
+
+        void PropagateUnion(ref Node n, float x, float y, float width, float height) {
+            do {
+                var resized = false;
+                if (x < n.X) {
+                    n.Width = n.X + n.Width - x;
+                    n.X = x;
+                    resized = true;
+                }
+                if (y < n.Y) {
+                    n.Height = n.Y + n.Height - y;
+                    n.Y = y;
+                    resized = true;
+                }
+                if (x + width > n.X + n.Width) {
+                    n.Width = x + width - n.X;
+                    resized = true;
+                }
+                if (y + height > n.Y + n.Height) {
+                    n.Height = y + height - n.Y;
+                    resized = true;
+                }
+                if (n.Parent == -1 || !resized)
+                    break;
+                n = ref _node[n.Parent];
+            } while (true);
         }
     }
 }
