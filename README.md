@@ -17,45 +17,29 @@ tree.Update(0, x: 5, y: 5, width: 80, height: 25);
 
 3. Query an area(s)
 ```cs
-using (var query = tree.Query(new Point(3, 4))) {
- foreach (int i in query) {
-  // ...
- }
+foreach (int i in tree.Query(new Point(3, 4))) {
+ // ...
 }
-using (var query = tree.Query(new Vector2(32.5f, 25))) {
- foreach (int i in query) {
-  // ...
- }
+foreach (int i in tree.Query(new Vector2(32.5f, 25))) {
+ // ...
 }
-using (var query = tree.Query(new Rectangle(x: 7, y: 2, width: 32, height: 27))) {
- foreach (int i in query) {
-  // ...
- }
+foreach (int i in tree.Query(new Rectangle(x: 7, y: 2, width: 32, height: 27))) {
+ // ...
 }
-using (var query = tree.Query(new Rectangle(x: 7, y: 2, width: 32, height: 27), rotation: 0, origin: Vector2.Zero)) {
- foreach (int i in query) {
-  // ...
- }
+foreach (int i in tree.Query(new Rectangle(x: 7, y: 2, width: 32, height: 27), rotation: 0, origin: Vector2.Zero)) {
+ // ...
 }
-using (var query = tree.Query(new Point(3, 4), radius: 10)) {
- foreach (int i in query) {
-  // ...
- }
+foreach (int i in tree.Query(new Point(3, 4), radius: 10)) {
+ // ...
 }
-using (var query = tree.Linecast(new Vector2(3, 4), new Vector2(8, 12), thickness: 3)) {
- foreach (int i in query) {
-  // ...
- }
+foreach (int i in tree.Linecast(new Vector2(3, 4), new Vector2(8, 12), thickness: 3)) {
+ // ...
 }
-using (var query = tree.Raycast(new Vector2(3, 4), direction: new Vector2(.5f, .75f), thickness: 3)) {
- foreach (int i in query) {
-  // ...
- }
+foreach (int i in tree.Raycast(new Vector2(3, 4), direction: new Vector2(.5f, .75f), thickness: 3)) {
+ // ...
 }
-using (var query = tree.Raycast(new Vector2(3, 4), rotation: MathF.PI, thickness: 3)) {
- foreach (int i in query) {
-  // ...
- }
+foreach (int i in tree.Raycast(new Vector2(3, 4), rotation: MathF.PI, thickness: 3)) {
+ // ...
 }
 ```
 
