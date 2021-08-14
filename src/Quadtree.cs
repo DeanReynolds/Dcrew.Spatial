@@ -60,10 +60,7 @@ namespace Dcrew.Spatial {
             _newWidth = _width = width;
             _newHeight = _height = height;
             _maxDepth = maxDepth;
-            var nodes = 1;
-            for (var i = 0; i < maxDepth; i++)
-                nodes += (int)Math.Pow(4, i + 1);
-            _node = new Node[nodes];
+            _node = new Node[1 + (int)Math.Pow(4, maxDepth - 1)];
             _node[0] = new Node(x + (width * .5f), y + (height * .5f), 0, -1);
             _freeNode = 1;
             _item = new TreeItem[maxItems];
